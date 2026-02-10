@@ -1,0 +1,1 @@
+#include "pipeline/stereoReconstructionPipeline.hpp"

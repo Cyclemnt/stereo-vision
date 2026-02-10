@@ -3,3 +3,6 @@ build/
 
 # Ignore shell scripts
 *.sh
+
+# VSCode configs
+.vscode/

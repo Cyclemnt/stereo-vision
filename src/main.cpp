@@ -2,8 +2,7 @@
 #include <iostream>
 
 int main(int argc, char** argv) {
-    // open the first webcam plugged in the computer
-    cv::VideoCapture camera(1); // in linux check $ ls /dev/video0
+    cv::VideoCapture camera("/dev/video2"); // in linux check $ ls /dev/video*, and check what camera to pick using ffplay /dev/videoX (install ffmpeg)
     if (!camera.isOpened()) {
         std::cerr << "ERROR: Could not open camera" << std::endl;
         return 1;
