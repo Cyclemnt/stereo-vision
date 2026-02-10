@@ -69,3 +69,19 @@ cloud = CloudFilter::downsample(cloud);
  │    └── Filters
  └── pipeline/
       └── StereoReconstructionPipeline
+
+## A eclaircir
+
+Les "descripteurs" d'OpenCV, c'est quoi, comment choir entre "context window" et 128 bits binaires et autres
+Ouvrir la caméra sans compression.
+
+Comment raisonne openCV
+
+## Pour la prochaine fois
+
+Identifier toutes les variables pour cameras
+Faire ld système de sauvegarde des paramètres caméras (faire lecture ecriture fichiers de mon côté pour maintenant)
+
+Fuck Around avec OpenCV
+Faire avec OpenCV C++, la détection de points/coins/features et leurs descripteurs
+Tenter le feature matching sur les images du Khizar (kitty_images/)

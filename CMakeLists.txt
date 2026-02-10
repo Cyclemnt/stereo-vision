@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.16)
 project(stereo-vision LANGUAGES CXX)
 
+set(CMAKE_BUILD_TYPE Debug)
+
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
@@ -23,3 +25,7 @@ target_link_libraries(${PROJECT_NAME}
     PRIVATE
         ${OpenCV_LIBS}
 )
+
+if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra)
+endif()

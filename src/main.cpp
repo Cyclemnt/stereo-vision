@@ -1,28 +1,12 @@
 #include <opencv2/opencv.hpp>
 #include <iostream>
 
+#include "camera/camera.hpp"
+
 int main(int argc, char** argv) {
-    cv::VideoCapture camera("/dev/video2"); // in linux check $ ls /dev/video*, and check what camera to pick using ffplay /dev/videoX (install ffmpeg)
-    if (!camera.isOpened()) {
-        std::cerr << "ERROR: Could not open camera" << std::endl;
-        return 1;
-    }
 
-    // create a window to display the images from the webcam
-    cv::namedWindow("Webcam", cv::WINDOW_AUTOSIZE);
+    Camera* cam = new Camera("/dev/video2");
+    cam->openCamera();
 
-    // array to hold image
-    cv::Mat frame;
-
-    // display the frame until you press a key
-    while (1) {
-        // capture the next frame from the webcam
-        camera >> frame;
-        // show the image on the window
-        cv::imshow("Webcam", frame);
-        // wait (10ms) for esc key to be pressed to stop
-        if (cv::waitKey(10) == 27)
-            break;
-    }
     return 0;
 }
