@@ -3,6 +3,7 @@
 
 #include <memory>
 class StereoCamera;
+#include "camera/stereoCamera.hpp"
 
 class StereoReconstructionPipeline {
 private:

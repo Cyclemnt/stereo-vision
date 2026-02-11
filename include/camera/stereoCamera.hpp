@@ -10,6 +10,7 @@ private:
     std::unique_ptr<Camera> rightCam;
 
 public:
+    /// @brief Constructs two cameras
     StereoCamera(/* params */);
 
     Camera& left() noexcept;
