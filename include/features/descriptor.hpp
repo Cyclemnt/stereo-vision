@@ -7,6 +7,7 @@
 class Descriptor {
 private:
     cv::Ptr<cv::ORB> orb;
+    
 public:
     Descriptor(/* args */);
 

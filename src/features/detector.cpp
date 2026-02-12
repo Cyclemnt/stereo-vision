@@ -17,8 +17,10 @@ std::vector<cv::KeyPoint> Detector::detect(cv::Mat& gray) const {
     double maxVal;
     cv::minMaxLoc(harrisResponse, nullptr, &maxVal);
     double threshold = 0.01 * maxVal; // Relative to the max value
+    int nmsWindowSize = 3;
+    int halfWindow = (nmsWindowSize - 1) * 0.5;
 
-    // Parcours en évitant les bords
+    // Read harrisResponse avoiding borders
     for (int y = 1; y < harrisResponse.rows - 1; ++y) {
         for (int x = 1; x < harrisResponse.cols - 1; ++x) {
             float val = harrisResponse.at<float>(y, x);
@@ -26,9 +28,9 @@ std::vector<cv::KeyPoint> Detector::detect(cv::Mat& gray) const {
             if (val > threshold) {
                 bool isLocalMax = true;
 
-                // Watch neighbors in 3x3 window (NMS)
-                for (int dy = -1; dy <= 1 && isLocalMax; ++dy) {
-                    for (int dx = -1; dx <= 1; ++dx) {
+                // Watch neighbors in the defined window (NMS)
+                for (int dy = -halfWindow; dy <= halfWindow && isLocalMax; ++dy) {
+                    for (int dx = -halfWindow; dx <= halfWindow; ++dx) {
                         if (dy == 0 && dx == 0) continue;
 
                         if (harrisResponse.at<float>(y + dy, x + dx) >= val) {
@@ -47,5 +49,20 @@ std::vector<cv::KeyPoint> Detector::detect(cv::Mat& gray) const {
     }
 
     return keypoints;
+}
 
+cv::Mat Detector::visualize(const cv::Mat& image, const std::vector<cv::KeyPoint>& keypoints) const {
+    cv::Mat output;
+
+    // If input is grayscale, convert to BGR to draw with colors
+    if (image.channels() == 1) {
+        cv::cvtColor(image, output, cv::COLOR_GRAY2BGR);
+    } else {
+        output = image.clone();
+    }
+
+    // Draw keypoints in red
+    cv::drawKeypoints(output, keypoints, output, cv::Scalar(0, 0, 255), cv::DrawMatchesFlags::DRAW_RICH_KEYPOINTS);
+
+    return output;
 }
