@@ -2,7 +2,9 @@
 #define __STEREO_CAMERA__
 
 #include <memory>
-class Camera;
+#include <string>
+
+#include "../camera/camera.hpp" // Forward declaration can't be used here, std::unique_ptr needs to know the size of Camera
 
 class StereoCamera {
 private:
@@ -10,8 +12,7 @@ private:
     std::unique_ptr<Camera> rightCam;
 
 public:
-    /// @brief Constructs two cameras
-    StereoCamera(/* params */);
+    StereoCamera(std::string leftCameraName, std::string rightCameraName); // The two cameras might not be the same
 
     Camera& left() noexcept;
     Camera& right() noexcept;

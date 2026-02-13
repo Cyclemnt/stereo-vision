@@ -1,9 +1,9 @@
 #include "camera/stereoCamera.hpp"
 #include "camera/camera.hpp"
 
-StereoCamera::StereoCamera(/* params */) {
-    leftCam = std::make_unique<Camera>(/* params */);
-    rightCam = std::make_unique<Camera>(/* params */);
+StereoCamera::StereoCamera(std::string leftCameraName, std::string rightCameraName) {
+    leftCam = std::make_unique<Camera>(leftCameraName);
+    rightCam = std::make_unique<Camera>(rightCameraName);
 }
 
 Camera& StereoCamera::left() noexcept {

@@ -1,16 +1,14 @@
 #include <opencv2/opencv.hpp>
 #include <iostream>
 
-#include "camera/camera.hpp"
+#include "camera/stereoCamera.hpp"
 #include "features/detector.hpp"
 #include "features/descriptor.hpp"
 #include "features/matcher.hpp"
 
 int main(int argc, char** argv) {
 
-    // Camera* cam = new Camera("/dev/video2");
-    // cam->openCamera();
-
+    // Feature Detector
     cv::Mat img1 = cv::imread("../kitti_images/000000.png", cv::IMREAD_GRAYSCALE);
     cv::Mat img2 = cv::imread("../kitti_images/000001.png", cv::IMREAD_GRAYSCALE);
     Detector detec;
@@ -33,6 +31,29 @@ int main(int argc, char** argv) {
     cv::imshow("Matches", vizmatch);
 
     cv::waitKey(0);
+
+
+    // Stereo Cameras
+    std::vector<std::string> allCams = Camera::availableCameras();
+    for (const std::string& camPath : allCams)
+        std::cout << camPath << std::endl;
+
+    StereoCamera* stereo = new StereoCamera("Left", "Right");
+
+    stereo->left().setUri("/dev/video4");
+    stereo->right().setUri("/dev/video2");
+
+    // std::cout << stereo->left() << "\n";
+    // std::cout << stereo->right() << std::endl;
+
+    // stereo->left().openCameraFeed();
+    // stereo->right().openCameraFeed();
+
+    cv::Mat picLeft = stereo->left().takePicture();
+    cv::Mat picRight = stereo->right().takePicture();
+
+    Camera::showPicture(picLeft);
+    Camera::showPicture(picRight);
 
     return 0;
 }
