@@ -1,4 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
+include(FetchContent)
 project(stereo-vision LANGUAGES CXX)
 
 set(CMAKE_BUILD_TYPE Debug)
@@ -13,6 +14,14 @@ file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS
     ${CMAKE_SOURCE_DIR}/src/*.cpp
 )
 
+# Fetch the eigen library for Linear Algebra
+FetchContent_Declare(
+  eigen
+  GIT_REPOSITORY https://gitlab.com/libeigen/eigen.git
+  GIT_TAG        5.0.1
+)
+FetchContent_MakeAvailable(eigen)
+
 add_executable(${PROJECT_NAME} ${SOURCES})
 
 target_include_directories(${PROJECT_NAME}
@@ -24,6 +33,7 @@ target_include_directories(${PROJECT_NAME}
 target_link_libraries(${PROJECT_NAME}
     PRIVATE
         ${OpenCV_LIBS}
+        eigen
 )
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
