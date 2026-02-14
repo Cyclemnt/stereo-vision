@@ -22,13 +22,11 @@ void Camera::setupCamera() {
     }
 
     // Check with v4l2-ctl --device=/dev/videoX --list-formats-ext
-    bool set_ok = this->cam.set(cv::CAP_PROP_FOURCC, cv::VideoWriter::fourcc('Y', 'U', 'Y', 'V'));
     // std::cout << "Setting cam to YUYV : " << set_ok << "\n";
-    if (!set_ok) {
+    if (!this->cam.set(cv::CAP_PROP_FOURCC, cv::VideoWriter::fourcc('Y', 'U', 'Y', 'V'))) {
         // Fallback for some cameras
-        set_ok = this->cam.set(cv::CAP_PROP_FOURCC, cv::VideoWriter::fourcc('Y', 'U', 'Y', '2'));
         // std::cout << "Setting cam to YUY2 : " << set_ok << std::endl;
-        if (!set_ok) {
+        if (!this->cam.set(cv::CAP_PROP_FOURCC, cv::VideoWriter::fourcc('Y', 'U', 'Y', '2'))) {
             throw std::runtime_error("Camera could not be read in YUYV nor YUY2.");
         }
     }
@@ -48,6 +46,25 @@ void Camera::setupCamera() {
     // std::cout << "Actual resolution: " << this->cam.get(cv::CAP_PROP_FRAME_WIDTH)
     //     << "x" << this->cam.get(cv::CAP_PROP_FRAME_HEIGHT) << std::endl;
     // std::cout << "Actual FPS: " << this->cam.get(cv::CAP_PROP_FPS) << std::endl;
+
+    // Disable autoexposure
+    if (!this->cam.set(cv::CAP_PROP_AUTO_EXPOSURE, 0.25)) {
+        std::cout << "AE set to 0.25 failed" << std::endl;
+        if (!this->cam.set(cv::CAP_PROP_AUTO_EXPOSURE, 1)) {
+            std::cout << "AE set to 1 failed" << std::endl;
+            throw std::runtime_error("Could not disable camera auto-exposure.");
+        }
+    }
+
+    this->cam.set(cv::CAP_PROP_EXPOSURE, 30);
+    this->cam.set(cv::CAP_PROP_SATURATION, 70);
+    this->cam.set(cv::CAP_PROP_GAIN, 0);
+    this->cam.set(cv::CAP_PROP_AUTO_WB, 0);
+    this->cam.set(cv::CAP_PROP_WB_TEMPERATURE, 5000);
+    this->cam.set(cv::CAP_PROP_BRIGHTNESS, 30);
+
+    // Give a buffer to the capture
+    // this->cam.set(cv::CAP_PROP_BUFFERSIZE, 1);
 }
 
 void Camera::openCameraFeed() {
@@ -61,16 +78,14 @@ void Camera::openCameraFeed() {
         cv::WINDOW_GUI_EXPANDED
     );
 
-    cv::Mat frame;
-
     while (true) {
         try {
-            cam >> frame;
+            cam >> this->frame;
             // show the image on the window
-            cv::imshow(this->cameraSavedName, frame);
+            cv::imshow("Video Feed of Camera " + this->cameraSavedName, this->frame);
             // wait (10ms) for esc key to be pressed to stop
             if (cv::waitKey(10) == 27) {
-                cv::destroyWindow(this->cameraSavedName);
+                cv::destroyWindow("Video Feed of Camera " + this->cameraSavedName);
                 cam.release();
                 break;
             }
@@ -81,16 +96,20 @@ void Camera::openCameraFeed() {
     }
 }
 
-cv::Mat Camera::takePicture() {
-    if (!cam.isOpened())
+void Camera::takePicture() {
+    if (!this->cam.isOpened())
         setupCamera();
 
-    cv::Mat frame;
-    if (!cam.read(frame)) {
+    if (!this->cam.grab())
         throw std::runtime_error("Camera not available on " + this->cameraUri + " anymore.");
-    }
-    cam.release();
-    return frame;
+
+}
+
+cv::Mat Camera::getPicture() {
+    this->cam.retrieve(this->frame);
+    this->cam.release(); // Needed for both cameras to work at the same time
+
+    return this->frame;
 }
 
 void Camera::showPicture(cv::Mat image) {
@@ -137,12 +156,19 @@ std::vector<std::string> Camera::availableCameras() {
         return medias;
 }
 
+bool Camera::save(std::string path) {
+    // Writes configuration of camera
+    // What the hell should be saved here ?
+    // Should we also save exposure... ? or just principalPoint... ?
+    return false;
+}
+
 std::ostream& operator<<(std::ostream& out, Camera const& camera) {
     return out << "Camera object :"
         << "\n  is camera open : " << camera.cam.isOpened()
         << "\n  cameraSavedName : " << camera.cameraSavedName
         << "\n  cameraUri : " << camera.cameraUri
         << "\n  focalLength : " << camera.focalLength
-        << "\n  definition : " << camera.definitionPixels.first << "px ; " << camera.definitionPixels.second << "px";
+        << "\n  definition : (" << camera.definitionPixels.first << ";" << camera.definitionPixels.second << ") px";
 
 }

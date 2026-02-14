@@ -20,6 +20,7 @@ public:
     const Camera& left() const noexcept;
     const Camera& right() const noexcept;
 
+    void capture(); // Make both cameras take a simultaneous image
 };
 
 #endif

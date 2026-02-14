@@ -21,3 +21,11 @@ const Camera& StereoCamera::left() const noexcept {
 const Camera& StereoCamera::right() const noexcept {
     return *rightCam;
 }
+
+void StereoCamera::capture() {
+    // Crucial metric : both pictures should be taken at the EXACT SAME time
+    // Instead of using the default take Picture, we dismantle the two steps (grab, retrieve) in two steps
+    leftCam->takePicture();
+    // std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+    rightCam->takePicture();
+}
