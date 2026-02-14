@@ -49,7 +49,7 @@ cloud = CloudFilter::removeOutliers(cloud);
 cloud = CloudFilter::downsample(cloud);
 
 ## architecture
-/vision
+/
  ├── camera/
  │    ├── Camera
  │    ├── StereoCamera
@@ -68,7 +68,9 @@ cloud = CloudFilter::downsample(cloud);
  │    ├── PointCloud
  │    └── Filters
  └── pipeline/
-      └── StereoReconstructionPipeline
+ │    └── StereoReconstructionPipeline
+ └── visualization/
+      └── idk (open3D implentation ?)
 
 ## A eclaircir
 
@@ -76,6 +78,16 @@ Les "descripteurs" d'OpenCV, c'est quoi, comment choir entre "context window" et
 Ouvrir la caméra sans compression.
 
 Comment raisonne openCV
+
+Est-ce que nous utilisons Open3D ?
+      - Propose vizualisation de nuage de point (voulu), et plein d'autres
+      - Contient un GUI (d'ImGui), donc possible d'ajouter
+            - Sliders pour paramètres Caméras
+            - Images pour preview caméra (identifier droite/gauche et si c'est la bonne source)
+      (https://www.open3d.org/docs/latest/cpp_api/)
+      (https://www.open3d.org/docs/latest/tutorial/C++/cplusplus_interface.html)
+      (https://grok.com/share/bGVnYWN5_2ee48377-829d-4981-9b00-87ef2ec41e14)
+Ou sinon, j'ai déjà utilisé ImGui, et une extension permet de plot en 3D. Ca fonctionnerait, mais très limité pour de la vision.
 
 ## Pour la prochaine fois
 
@@ -85,3 +97,10 @@ Faire ld système de sauvegarde des paramètres caméras (faire lecture ecriture
 Fuck Around avec OpenCV
 Faire avec OpenCV C++, la détection de points/coins/features et leurs descripteurs
 Tenter le feature matching sur les images du Khizar (kitty_images/)
+
+## Finding the camera
+With ffmpeg installed, you can try to run 
+```
+ffplay /dev/videoX
+```
+and it should show you what the camera records
