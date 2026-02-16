@@ -11,6 +11,31 @@ options :
     --list-ctrls : shows the parameters of the cameras (brightness, saturation...)
 */
 
+void Camera::run(std::atomic<bool>& shouldRun, std::mutex& mtx, std::chrono::time_point < std::chrono::steady_clock> startTime) {
+    delete this->cameraAvailable; // Gets rid of the last mutex (needed when using a camera alone)
+    this->cameraAvailable = &mtx;
+    std::chrono::time_point nextShutter = startTime; // Would be a parameter
+    while (shouldRun) {
+        // shouldRun is owned by StereoCamera, in the main thread
+        std::this_thread::sleep_until(nextShutter); // FPS of the camera captures
+
+        this->cameraAvailable->lock();
+
+        this->newCapture = true;
+        takePicture();
+        // this->cam.retrieve(this->frame);
+
+        this->cameraAvailable->unlock();
+
+        nextShutter += std::chrono::milliseconds(int(1 / this->fps) * 1000);
+
+        if ((nextShutter - std::chrono::steady_clock::now()).count() > 0) {
+            // nextShutter time already passed
+            std::cerr << this->cameraSavedName << " is not keeping up the max-fps pace !" << std::endl;
+        }
+    }
+}
+
 void Camera::setupCamera() {
     // Opens the camera at the given uri
     assert(this->cameraUri != ""); // cameraUri is empty, can't open camera
@@ -33,7 +58,9 @@ void Camera::setupCamera() {
 
     this->cam.set(cv::CAP_PROP_FRAME_WIDTH, 1280);
     this->cam.set(cv::CAP_PROP_FRAME_HEIGHT, 800);
+    this->frame = new cv::Mat3s(800, 1280); // Might not be Mat3s for every camera. Needed for giving the size before the first frame
     this->cam.set(cv::CAP_PROP_FPS, 10);
+    this->fps = 10;
 
     // Verify what format was actually applied
     // int fourcc_val = static_cast<int>(this->cam.get(cv::CAP_PROP_FOURCC));
@@ -56,15 +83,16 @@ void Camera::setupCamera() {
         }
     }
 
-    this->cam.set(cv::CAP_PROP_EXPOSURE, 30);
+    this->cam.set(cv::CAP_PROP_EXPOSURE, 20);
     this->cam.set(cv::CAP_PROP_SATURATION, 70);
     this->cam.set(cv::CAP_PROP_GAIN, 0);
     this->cam.set(cv::CAP_PROP_AUTO_WB, 0);
     this->cam.set(cv::CAP_PROP_WB_TEMPERATURE, 5000);
-    this->cam.set(cv::CAP_PROP_BRIGHTNESS, 30);
+    this->cam.set(cv::CAP_PROP_BRIGHTNESS, 20);
 
     // Give a buffer to the capture
     // this->cam.set(cv::CAP_PROP_BUFFERSIZE, 1);
+    this->newCapture = false;
 }
 
 void Camera::openCameraFeed() {
@@ -80,9 +108,9 @@ void Camera::openCameraFeed() {
 
     while (true) {
         try {
-            cam >> this->frame;
+            cam >> *this->frame;
             // show the image on the window
-            cv::imshow("Video Feed of Camera " + this->cameraSavedName, this->frame);
+            cv::imshow("Video Feed of Camera " + this->cameraSavedName, *this->frame);
             // wait (10ms) for esc key to be pressed to stop
             if (cv::waitKey(10) == 27) {
                 cv::destroyWindow("Video Feed of Camera " + this->cameraSavedName);
@@ -97,17 +125,39 @@ void Camera::openCameraFeed() {
 }
 
 void Camera::takePicture() {
+    /*
+    Asks the camera to take a frame
+    Updates the real FPS stats
+    */
     if (!this->cam.isOpened())
         setupCamera();
 
-    if (!this->cam.grab())
+    std::cout << "[" << std::chrono::high_resolution_clock::now().time_since_epoch().count() << "] Taking picture from " << this->cameraSavedName << std::endl;
+    // this->cameraAvailable->lock();
+    if (!this->cam.grab()) {
+        // this->cameraAvailable->unlock();
+        std::cout << "[" << std::chrono::high_resolution_clock::now().time_since_epoch().count() << "] Taking picture from " << this->cameraSavedName << " END" << std::endl;
         throw std::runtime_error("Camera not available on " + this->cameraUri + " anymore.");
-
+    }
+    this->newCapture = true;
 }
 
-cv::Mat Camera::getPicture() {
-    this->cam.retrieve(this->frame);
-    this->cam.release(); // Needed for both cameras to work at the same time
+cv::Mat* Camera::getPicture() {
+    // TODO : I should test what happens if getPicture is called more often than takePicture()
+    if (!this->newCapture) {
+        // getPicture is called more often than takePicture
+        // Returning the same content early to save thread time
+        std::cout << "[" << std::chrono::high_resolution_clock::now().time_since_epoch().count() << "] Retrieved saved picture from " << this->cameraSavedName << std::endl;
+
+        return this->frame;
+    }
+
+    std::cout << "[" << std::chrono::high_resolution_clock::now().time_since_epoch().count() << "] Retrieving picture from " << this->cameraSavedName << std::endl;
+    // It looks like mutexes are not needed here, and I don't understand why.
+    // std::cout << "[" << std::chrono::high_resolution_clock::now().time_since_epoch().count() << "] Retreived picture from " << this->cameraSavedName << std::endl;
+    this->cam.retrieve(*this->frame);
+    this->newCapture = false;
+    // std::cout << "[" << std::chrono::high_resolution_clock::now().time_since_epoch().count() << "] Retrieved picture from " << this->cameraSavedName << " END" << std::endl;
 
     return this->frame;
 }
@@ -156,7 +206,7 @@ std::vector<std::string> Camera::availableCameras() {
         return medias;
 }
 
-bool Camera::save(std::string path) {
+bool Camera::save(std::string path) const {
     // Writes configuration of camera
     // What the hell should be saved here ?
     // Should we also save exposure... ? or just principalPoint... ?

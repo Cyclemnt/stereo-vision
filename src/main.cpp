@@ -6,6 +6,46 @@
 #include "features/descriptor.hpp"
 #include "features/matcher.hpp"
 
+void stereoCamTest() {
+    StereoCamera* stereo;
+    {
+        // Scope to limit access to leftCamera and rightCamera (they become nullptr after the std::move)
+        std::unique_ptr<Camera> leftCamera = std::make_unique<Camera>("Left");
+        std::unique_ptr<Camera> rightCamera = std::make_unique<Camera>("Right");
+
+        leftCamera->setUri("/dev/video4");
+        rightCamera->setUri("/dev/video2");
+
+        leftCamera->setupCamera();
+        rightCamera->setupCamera();
+
+        stereo = new StereoCamera(std::move(leftCamera), std::move(rightCamera));
+    }
+    // std::cout << stereo->left() << "\n";
+    // std::cout << stereo->right() << std::endl;
+
+    // stereo->openLeftCameraFeed();
+    // stereo->openRightCameraFeed();
+    stereo->openCameraFeeds();
+    // stereo->start();
+
+    // cv::Mat leftPic = stereo->left().getPicture();
+    // std::cout << "Left pic empty : " << leftPic.empty() << std::endl;
+    // cv::Mat rightPic = stereo->right().getPicture();
+    // std::cout << "Right pic empty : " << rightPic.empty() << std::endl;
+
+    // Camera::showPicture(leftPic);
+    // Camera::showPicture(rightPic);
+
+    // std::this_thread::sleep_for(std::chrono::milliseconds(750));
+
+    delete stereo;
+
+    std::cout << "deteled stereo" << std::endl;
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(3000));
+}
+
 int main(int argc, char** argv) {
 
     // Feature Detector
@@ -34,26 +74,11 @@ int main(int argc, char** argv) {
 
 
     // Stereo Cameras
-    std::vector<std::string> allCams = Camera::availableCameras();
-    for (const std::string& camPath : allCams)
-        std::cout << camPath << std::endl;
+    // std::vector<std::string> allCams = Camera::availableCameras();
+    // for (const std::string& camPath : allCams)
+    //     std::cout << camPath << std::endl;
 
-    StereoCamera* stereo = new StereoCamera("Left", "Right");
-
-    stereo->left().setUri("/dev/video4");
-    stereo->right().setUri("/dev/video2");
-
-    // std::cout << stereo->left() << "\n";
-    // std::cout << stereo->right() << std::endl;
-
-    // stereo->left().openCameraFeed();
-    // stereo->right().openCameraFeed();
-
-    cv::Mat picLeft = stereo->left().takePicture();
-    cv::Mat picRight = stereo->right().takePicture();
-
-    Camera::showPicture(picLeft);
-    Camera::showPicture(picRight);
+    stereoCamTest();
 
     return 0;
 }
