@@ -3,6 +3,7 @@
 
 #include <tuple>
 #include <string>
+#include <limits>
 
 // For multithreading and stereo synchronization
 #include <thread>
@@ -10,23 +11,40 @@
 #include <chrono>
 
 #include <opencv2/opencv.hpp> 
+#include <Eigen/Dense>
 
 class Camera {
 private:
     std::mutex* cameraAvailable; // Can't retrieve and grab at the same time (check grab when retrieve as grab protection comes from main thread, follow the flow)
     bool newCapture;
 
+    // OpenCV camera device & saved frame
     cv::VideoCapture cam;
     cv::Mat* frame; // I save the frame here to, later, have parallelization, so the camera will take their picture simultaneously
 
     std::string cameraSavedName; // Used to save camera presets, makes working with multiple cameras easier
-    std::string cameraUri;
-    double focalLength;
-    double principalPoint;
-    double fps;
 
-    std::pair<int, int> definitionPixels;
+    // Intrinsic paramaters
+    // Must be set BEFORE creating the StereoCamera object
+    double focalLength = std::numeric_limits<double>::max();
+    double skew = std::numeric_limits<double>::max();
+    std::pair<double, double> principalPoint = std::make_pair(
+        std::numeric_limits<double>::max(),
+        std::numeric_limits<double>::max()
+    );
+    int fps = 0; // Do not support decimal fps
+    std::pair<int, int> definitionPixels = std::make_pair(0, 0);
+    Eigen::Matrix3d K = Eigen::Matrix3d::Zero(); // Calibration matrix {f_x s 0 \ 0 f_y 0 \ 0 0 1}
+    // f_x = focalLength * definitionPixels.first
+    // f_x = focalLength * definitionPixels.second
 
+    // FPS statistics
+    int rollingWindowSeconds = 1; // seconds of the rooling window (the greater this value, the smoother the counter)
+    size_t rollingWindowIndex = 0; // Where next timestamp will be placed
+    // frameTimestamps could be a std::array, but it's size depends on the camera fps, unknown at compile-time
+    std::vector<std::chrono::steady_clock::time_point> frameTimestamps; // Used for rolling-window captureFps()
+
+    void computeK();
 public:
     // Use this when using a new camera 
     Camera(std::string cameraUri, std::pair<int, int> definition, double focalLength, std::string cameraName = "Unnamed Camera") {

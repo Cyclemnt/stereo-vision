@@ -48,6 +48,10 @@ PointCloud cloud = Triangulator::reconstruct(disparity, K1, R, T);
 cloud = CloudFilter::removeOutliers(cloud);
 cloud = CloudFilter::downsample(cloud);
 
+## Solution from Ureed Hussain
+
+[Github Repo](https://github.com/Ureed-Hussain/Computer-Vision/blob/main/Single%20camera.ipynb)
+
 ## architecture
 /
  ├── camera/
@@ -92,7 +96,15 @@ Ou sinon, j'ai déjà utilisé ImGui, et une extension permet de plot en 3D. Ca 
 ## Pour la prochaine fois
 
 Identifier toutes les variables pour cameras
-Faire ld système de sauvegarde des paramètres caméras (faire lecture ecriture fichiers de mon côté pour maintenant)
+
+      - Les caméras Microsoft LifeCam ne donnent ni la taille physique du capteur, ni la distance focale. Comment Dieu déterminer f_x et f_y ???
+
+Géométrie du système stéréo, si les deux caméras sont coplanaires, alors la distance focale n'intervient pas dans la distance de la Baseline (R ~ Identité).
+D'après Ureed Hussain, c'est un trick car les calibrations automatiques sont assez pourries.
+
+Faire le système de sauvegarde des paramètres caméras (faire lecture ecriture fichiers de mon côté pour maintenant)
+
+En faiant de la programmation défensive, si on rencontre un problème (genre une matrice de projection n'a pas le bon rang, on throw une exception, on retourne un false, ou on system32.shutdown()) ?
 
 Fuck Around avec OpenCV
 Faire avec OpenCV C++, la détection de points/coins/features et leurs descripteurs

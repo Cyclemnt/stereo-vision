@@ -6,6 +6,43 @@ Set cameras brightness, disable auto-exposure ... (Using OpenCV, or else using b
 For the two cameras to properly work and be powered, be sure to use two USB port/buses.  
 It might also work with a powered USB-hub, but your computer/USB port might also be a limitation.
 
+### Intrinsic parameters of the Microsoft LifeCam HD-3000 webcam
+
+We have to determine / find the $f_x$, $f_y$, $s$, $c_x$, and $c_y$ values.
+Assuming $s = 0$
+
+Microsoft gives the FOV in the diagonal direction only, and says the diagonal is at 68.5°
+
+## Camera software
+
+### How to measure the actual FPS of the capture ?
+
+For a 1 second rolling-window average
+For a camera running at a theoretical 10 fps (can't go faster), let's have an array of 1 * 10 + 1 items, initialized to the current time T :
+```mermaid
+
+flowchart LR
+    0[T] --> 1[T] --> 2[T] --> 3[T] --> 4[T] --> 5[T] --> 6[T] --> 7[T] --> 8[T] --> 9[T] --> 10[T]
+```
+
+We fill the array and loop on it `index = (index + 1) % 11`
+
+```mermaid
+
+flowchart LR
+    0[10] --> 1[11] --> 2[12] --> 3[13] --> 4(14<br>last saved index) --> 5(5<br>time 10 frames ago) --> 6[6] --> 7[7] --> 8[8] --> 9[9] --> 10[T]
+```
+
+The time it took to take 10 frames is : `time@last_saved_index - time@time_10_frames_ago`  
+Which is `time@last_saved_index - time@(last_saved_index+1)%11`  
+Therefore, what we save in them are timestamps, from `std::chrono::steady_clock`
+
+This is a way to have a stabilized instantaneous FPS counter, that works on a fixed amount of memory.
+In the case where the camera stops working, we know when was the last capture time : checking if this last time is long passed is enough to detect a sudden stop.
+
+With this implementation, I can say 10fps aquisition with the 10fps cameras has been a success !    
+
+
 ## Stereo setup
 
 In the stereo configuration, make sure the two images are taken at the same time.

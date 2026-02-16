@@ -93,6 +93,29 @@ void Camera::setupCamera() {
     // Give a buffer to the capture
     // this->cam.set(cv::CAP_PROP_BUFFERSIZE, 1);
     this->newCapture = false;
+
+    // Sets up the rolling-window FPS counter
+    assert(this->fps != 0);
+    frameTimestamps.resize(
+        this->fps * this->rollingWindowSeconds + 1, // This should be an integer thanks
+        std::chrono::steady_clock::now()
+    );
+
+    this->computeK();
+}
+
+void Camera::computeK() {
+    /*
+    K = f_x   s  c_x
+          0 f_y  c_y
+          0   0    1
+    */
+    K(0, 0) = 1078;// f_x
+    K(1, 1) = 1078;// f_y
+    K(0, 1) = this->skew;
+    K(0, 2) = this->definitionPixels.first; // c_x
+    K(1, 2) = this->definitionPixels.second; // c_y
+    K(2, 2) = 1;
 }
 
 void Camera::openCameraFeed() {
@@ -140,6 +163,11 @@ void Camera::takePicture() {
         throw std::runtime_error("Camera not available on " + this->cameraUri + " anymore.");
     }
     this->newCapture = true;
+
+    // For rolling window captureFps()
+    this->frameTimestamps[this->rollingWindowIndex] = std::chrono::steady_clock::now();
+    this->rollingWindowIndex = (this->rollingWindowIndex + 1) % this->frameTimestamps.size();
+
 }
 
 cv::Mat* Camera::getPicture() {
@@ -160,6 +188,16 @@ cv::Mat* Camera::getPicture() {
     // std::cout << "[" << std::chrono::high_resolution_clock::now().time_since_epoch().count() << "] Retrieved picture from " << this->cameraSavedName << " END" << std::endl;
 
     return this->frame;
+}
+
+double Camera::getCaptureFps() const {
+    /*
+    Does a rolling window measure, based on takePicture successes
+    */
+    size_t nextIndex = (this->rollingWindowIndex + 1) % this->frameTimestamps.size();
+    std::chrono::duration<double, std::milli> msForNFrames = this->frameTimestamps[nextIndex] - this->frameTimestamps[this->rollingWindowIndex];
+
+    return (1 / msForNFrames.count()) / this->rollingWindowSeconds * 1000;
 }
 
 void Camera::showPicture(cv::Mat image) {
@@ -219,6 +257,8 @@ std::ostream& operator<<(std::ostream& out, Camera const& camera) {
         << "\n  cameraSavedName : " << camera.cameraSavedName
         << "\n  cameraUri : " << camera.cameraUri
         << "\n  focalLength : " << camera.focalLength
+        << "\n  advertisedFPS : " << camera.fps
+        << "\n  captureFPS : " << camera.getCaptureFps()
         << "\n  definition : (" << camera.definitionPixels.first << ";" << camera.definitionPixels.second << ") px";
 
 }

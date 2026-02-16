@@ -41,8 +41,8 @@ void StereoCamera::openCameraFeeds() {
     this->start();
 
     int min_fps = std::min(
-        this->leftCam->getFps(),
-        this->rightCam->getFps()
+        this->leftCam->getCameraFps(),
+        this->rightCam->getCameraFps()
     );
     int time = 1000 / min_fps;
 
@@ -52,6 +52,8 @@ void StereoCamera::openCameraFeeds() {
             // show the image on the window
             cv::imshow("Video Feed of Left Camera", pair.first);
             cv::imshow("Video Feed of Right Camera", pair.second);
+            std::cout << "Left FPS : " << this->leftCam->getCaptureFps() << std::endl;
+            std::cout << "Right FPS : " << this->rightCam->getCaptureFps() << std::endl;
             // Wait for both cameras to take another image
             if (cv::waitKey(time) == 27) {
                 cv::destroyAllWindows();
