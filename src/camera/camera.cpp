@@ -83,12 +83,12 @@ void Camera::setupCamera() {
         }
     }
 
-    this->cam.set(cv::CAP_PROP_EXPOSURE, 20);
+    this->cam.set(cv::CAP_PROP_EXPOSURE, 30);
     this->cam.set(cv::CAP_PROP_SATURATION, 70);
     this->cam.set(cv::CAP_PROP_GAIN, 0);
     this->cam.set(cv::CAP_PROP_AUTO_WB, 0);
     this->cam.set(cv::CAP_PROP_WB_TEMPERATURE, 5000);
-    this->cam.set(cv::CAP_PROP_BRIGHTNESS, 20);
+    this->cam.set(cv::CAP_PROP_BRIGHTNESS, 30);
 
     // Give a buffer to the capture
     // this->cam.set(cv::CAP_PROP_BUFFERSIZE, 1);
