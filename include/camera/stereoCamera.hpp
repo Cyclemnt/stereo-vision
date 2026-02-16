@@ -48,12 +48,23 @@ public:
     const Camera& left() const noexcept;
     const Camera& right() const noexcept;
 
+    /// @brief Open the Left camera from the Stereo system (to check integration)
     void openLeftCameraFeed();
+
+    /// @brief Open the Right camera from the Stereo system (to check integration)
     void openRightCameraFeed();
+
+    /// @brief Open both cameras at the same time in two different windows to see syncronization
     void openCameraFeeds();
+
+    /// @brief Start the syncronized aquisition. Be aware that the first captures might take 500ms, for syncronization's sake
     void start(); // Make both cameras take a simultaneous image
+
+    /// @brief Kindly ask the multi-threading god to stop this non-sense (and stop the syncronized capture from both cameras)
     void stop(); // Make both cameras take a simultaneous image
 
+    /// @brief Get a matching pair of images from both cameras
+    /// @return Pair (left, right) of the camera images
     std::pair<cv::Mat, cv::Mat> capturePair();
 };
 
