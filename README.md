@@ -1,4 +1,13 @@
-# stereo-vision
+# stereo-vision : A desktop program to reconstruct a 3D world from 2 cameras
+
+## Directories
+
+Wherever you run the app, you would use two directories :
+
+- The config directory, all configurations/calibrations are stored here in JSON format. You should not need to use this directory.
+- The data directory, where you can retrieve all of the exported data (point clouds, images, ...)
+
+## Objectives
 
 Calibration automatique
 

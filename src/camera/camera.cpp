@@ -262,3 +262,13 @@ std::ostream& operator<<(std::ostream& out, Camera const& camera) {
         << "\n  definition : (" << camera.definitionPixels.first << ";" << camera.definitionPixels.second << ") px";
 
 }
+
+void to_json(json& j, const Camera& cam) {
+    j = json({
+        "test", "fuck"
+        });
+}
+
+void from_json(const json& j, Camera& cam) {
+    j.at("json_entry").get_to(cam.cameraSavedName);
+}

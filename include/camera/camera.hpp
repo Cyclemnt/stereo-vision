@@ -13,16 +13,19 @@
 #include <opencv2/opencv.hpp> 
 #include <Eigen/Dense>
 
+#include "files/fileManager.hpp"
+
 class Camera {
 private:
+    // Multi-threading protections, needed once used by StereoCamera
     std::mutex* cameraAvailable; // Can't retrieve and grab at the same time (check grab when retrieve as grab protection comes from main thread, follow the flow)
     bool newCapture;
 
     // OpenCV camera device & saved frame
     cv::VideoCapture cam;
     cv::Mat* frame; // I save the frame here to, later, have parallelization, so the camera will take their picture simultaneously
-
-    std::string cameraSavedName; // Used to save camera presets, makes working with multiple cameras easier
+    std::string cameraUri = "/dev/video1";
+    std::string cameraSavedName = "unknownCamera"; // Used to save camera presets, makes working with multiple cameras easier
 
     // Intrinsic paramaters
     // Must be set BEFORE creating the StereoCamera object
@@ -68,6 +71,8 @@ public:
         //     data.definitionPixels_x
         //     data.definitionPixels_y
     };
+
+    Camera() {};
 
     ~Camera() = default;
 
@@ -121,6 +126,10 @@ public:
     static void showPicture(cv::Mat img);
 
     friend std::ostream& operator<<(std::ostream&, Camera const&);
+
+    // For JSON - object conversion
+    friend void to_json(json&, const Camera&);
+    friend void from_json(const json&, Camera&);
 };
 
 
