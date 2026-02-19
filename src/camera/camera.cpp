@@ -141,7 +141,7 @@ void Camera::openCameraFeed() {
                 break;
             }
         }
-        catch (cv::Exception ex) {
+        catch (const cv::Exception& ex) {
             throw std::runtime_error("Camera not available on " + this->cameraUri + " anymore.");
         }
     }

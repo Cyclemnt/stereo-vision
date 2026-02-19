@@ -60,7 +60,7 @@ void StereoCamera::openCameraFeeds() {
                 break;
             }
         }
-        catch (cv::Exception ex) {
+        catch (const cv::Exception& ex) {
             throw std::runtime_error("A camera is not available.");
         }
     }
@@ -106,7 +106,7 @@ void StereoCamera::stop() {
         this->leftT.join();
         this->rightT.join();
     }
-    catch (std::runtime_error ex) {
+    catch (const std::runtime_error& ex) {
         std::cout << "A camera might be blocked by USB restrictions";
     }
     std::cout << "Cameras sucessfully released" << std::endl;
