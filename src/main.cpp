@@ -11,7 +11,7 @@
 #include "files/fileManager.hpp"
 #include <fstream> // Needed for jsonTest(). Should be removed
 
-void stereoCamTest() {
+void availableCamTest() {
     std::vector<std::string> allCams = Camera::availableCameras();
     std::cout << "Available cameras on this computer : \n";
     for (const std::string& camPath : allCams)
@@ -86,45 +86,44 @@ void featureDetectorTest() {
 }
 
 void jsonTest() {
+    json data;
+    Files::ERRORS status;
+
     // Import
-    std::ifstream json_file(paths::userConfigPath / "test.json");
-    if (!json_file) {
-        std::cout << "JSON file not opened, does it exist ?" << std::endl;
-    }
-    else if (json_file.peek() == std::ifstream::traits_type::eof()) {
-        std::cout << "JSON file is empty" << std::endl;
+    status = Files::loadCameraFile("Logitech (CO-ROB-398-CAM)", &data);
+    if (status == Files::ERRORS::OK) {
+        std::cout << "It worked, here is the json parsed : " << data.dump(4) << std::endl;
+        Camera cam = data;
+        std::cout << cam << std::endl;
     }
     else {
-        // files should always be non-empty before calling json::parse
-        json imported = json::parse(json_file);
-        std::cout << "JSON parsed file : \n" << imported.dump(4) << std::endl;
+        std::cout << Files::to_string(status) << std::endl;
     }
 
-    json j;
-    j["name"] = "Lucas";
-    j["age"] = "21";
+    // json j;
+    // j["name"] = "Lucas";
+    // j["age"] = "21";
+    // j["parents"] = {
+    //     {"father", "Sébastien"},
+    //     {"mother", "Rosine"}
+    // };
+
+    Camera left = Camera();
+    left.setUri("/dev/video42");
+    left.setName("Logitech (CO-ROB-398-CAM)");
+
+    json j = left;
 
     std::cout << j.dump(3) << std::endl;
 
     // Writing json file
-    std::filesystem::create_directories(paths::userDataPath); // Directory SHOULD exist before opening an ofstream
-    std::ofstream json_output(paths::userDataPath / "testOut.json");
-    if (json_output.is_open()) {
-        std::cout << "Printing json file to " << paths::userDataPath << " folder" << std::endl;
-        json_output << j.dump(4) << std::endl;
+    status = Files::saveCameraFile("Logitech (CO-ROB-398-CAM)", &j);
+    if (status == Files::ERRORS::OK) {
+        std::cout << "Camera save worked !" << std::endl;
     }
     else {
-        std::cout << "Unable to open json file to " << paths::userDataPath << " folder" << std::endl;
-        exit(1);
+        std::cout << Files::to_string(status) << std::endl;
     }
-
-    Camera leftCamera("Left");
-    leftCamera.setUri("/dev/video3");
-
-    json struct_data = leftCamera;
-
-    std::cout << struct_data.dump(4) << std::endl;
-
 
 }
 

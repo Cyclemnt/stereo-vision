@@ -197,6 +197,10 @@ double Camera::getCaptureFps() const {
     size_t nextIndex = (this->rollingWindowIndex + 1) % this->frameTimestamps.size();
     std::chrono::duration<double, std::milli> msForNFrames = this->frameTimestamps[nextIndex] - this->frameTimestamps[this->rollingWindowIndex];
 
+    if (msForNFrames < std::chrono::duration<double, std::milli>(1)) {
+        // Division by zero prevention
+        return 0;
+    }
     return (1 / msForNFrames.count()) / this->rollingWindowSeconds * 1000;
 }
 
@@ -264,11 +268,44 @@ std::ostream& operator<<(std::ostream& out, Camera const& camera) {
 }
 
 void to_json(json& j, const Camera& cam) {
+    // Eigen matrices not being automatically cast for JSON, we implement our own
+    K_datatype K_vals[9];
+    // values in Eigen::Matrix<...>::data are stored column after column
+    for (int i = 0; i < 3 * 3; i++)
+        K_vals[i] = cam.K.data()[i];
+    // So cam.K is : K_vals[0] K_vals[3] K_vals[6]
+    //               K_vals[1] K_vals[4] K_vals[7]
+    //               K_vals[2] K_vals[5] K_vals[8]
+
     j = json({
-        "test", "fuck"
+        {"URI", cam.cameraUri},
+        {"focalLength", cam.focalLength},
+        {"skew", cam.skew},
+        {"principalPoint", cam.principalPoint},
+        {"fps", cam.fps},
+        {"definition", cam.definitionPixels},
+        {"calibration matrix", K_vals},
         });
 }
 
 void from_json(const json& j, Camera& cam) {
-    j.at("json_entry").get_to(cam.cameraSavedName);
+    j.at("URI").get_to(cam.cameraUri);
+    j.at("focalLength").get_to(cam.focalLength);
+    j.at("skew").get_to(cam.skew);
+    j.at("principalPoint").get_to(cam.principalPoint);
+    j.at("fps").get_to(cam.fps);
+    j.at("definition").get_to(cam.definitionPixels);
+
+    // Eigen matrices not being automatically cast for JSON, we implement our own
+    K_datatype K_vals[9];
+    j.at("calibration matrix").get_to(K_vals);
+
+    for (int i = 0; i < 9; i++) {
+        std::cout << "from_json reading of K : " << K_vals[i] << std::endl;
+        cam.K(i) = K_vals[i];
+    }
+    // So cam.K is : K_vals[0] K_vals[3] K_vals[6]
+    //               K_vals[1] K_vals[4] K_vals[7]
+    //               K_vals[2] K_vals[5] K_vals[8]
+
 }

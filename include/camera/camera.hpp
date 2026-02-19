@@ -15,6 +15,8 @@
 
 #include "files/fileManager.hpp"
 
+using K_datatype = double; // Need to be centralized, as the type is needed for JSON files (serialization)
+
 class Camera {
 private:
     // Multi-threading protections, needed once used by StereoCamera
@@ -23,7 +25,7 @@ private:
 
     // OpenCV camera device & saved frame
     cv::VideoCapture cam;
-    cv::Mat* frame; // I save the frame here to, later, have parallelization, so the camera will take their picture simultaneously
+    cv::Mat* frame = nullptr; // I save the frame here to, later, have parallelization, so the camera will take their picture simultaneously
     std::string cameraUri = "/dev/video1";
     std::string cameraSavedName = "unknownCamera"; // Used to save camera presets, makes working with multiple cameras easier
 
@@ -37,7 +39,8 @@ private:
     );
     int fps = 0; // Do not support decimal fps
     std::pair<int, int> definitionPixels = std::make_pair(0, 0);
-    Eigen::Matrix3d K = Eigen::Matrix3d::Zero(); // Calibration matrix {f_x s 0 \ 0 f_y 0 \ 0 0 1}
+
+    Eigen::Matrix<K_datatype, 3, 3> K = Eigen::Matrix<K_datatype, 3, 3>::Zero(); // Calibration matrix {f_x s 0 \ 0 f_y 0 \ 0 0 1}
     // f_x = focalLength * definitionPixels.first
     // f_x = focalLength * definitionPixels.second
 
@@ -45,7 +48,7 @@ private:
     int rollingWindowSeconds = 1; // seconds of the rooling window (the greater this value, the smoother the counter)
     size_t rollingWindowIndex = 0; // Where next timestamp will be placed
     // frameTimestamps could be a std::array, but it's size depends on the camera fps, unknown at compile-time
-    std::vector<std::chrono::steady_clock::time_point> frameTimestamps; // Used for rolling-window captureFps()
+    std::vector<std::chrono::steady_clock::time_point> frameTimestamps{ 10 }; // Used for rolling-window captureFps(), default to a size of 10
 
     void computeK();
 public:
