@@ -1,5 +1,4 @@
 #include "camera/stereoCamera.hpp"
-#include "camera/camera.hpp"
 
 StereoCamera::StereoCamera(std::string leftCameraName, std::string rightCameraName) {
     leftCam = std::make_unique<Camera>(leftCameraName);

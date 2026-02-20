@@ -6,7 +6,7 @@
 #include <thread>
 #include <atomic>
 
-#include "../camera/camera.hpp" // Forward declaration can't be used here, std::unique_ptr needs to know the size of Camera
+#include "camera/camera.hpp"
 
 /*
 StereoCamera manages two threads, corresponding to the two cameras aquisitions
