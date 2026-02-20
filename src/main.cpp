@@ -64,12 +64,46 @@ void featureDetectorTest() {
 
     FeaturePipeline f;
 
-    auto pts = f.getMatches(img1, img2);
+    auto points = f.getMatches(img1, img2);
 
-    for (auto& pt : pts) {
-        std::cout << pt.first.x << "," << pt.first.y << " <=> " << pt.second.x << "," << pt.second.y << std::endl;
-    }
-    std::cout << "total matches: " << pts.size() << std::endl;
+    // // To go further:
+    // // Clean points with RANSAC
+    // std::vector<uchar> mask;
+    // cv::findFundamentalMat(points.first, points.second, cv::FM_RANSAC, 3.0, 0.99, mask);
+    // std::vector<cv::Point2f> cleanPoints1, cleanPoints2;
+    // for(int i = 0; i < mask.size(); ++i) {
+    //     if(mask[i]) {
+    //         cleanPoints1.push_back(points.first[i]);
+    //         cleanPoints2.push_back(points.second[i]);
+    //     }
+    // }
+
+    // // Create P matrixes
+    // // We get K1, K2, R and t from camera calibration
+    // // P1 = K1 * [I | 0]
+    // cv::Mat P1 = cv::Mat::zeros(3, 4, CV_64F);
+    // K1.copyTo(P1(cv::Rect(0, 0, 3, 3)));
+    // // P2 = K2 * [R | T]
+    // cv::Mat P2 = cv::Mat::zeros(3, 4, CV_64F);
+    // cv::Mat RT;
+    // cv::hconcat(R, T, RT); // RT = R|t
+    // P2 = K2 * RT;
+
+    // // Triangulate points
+    // cv::Mat points4D;
+    // cv::triangulatePoints(P1, P2, cleanPoints1, cleanPoints2, points4D);
+    // std::vector<cv::Point3f> pointCloud;
+    // for (int i = 0; i < points4D.cols; ++i) {
+    //     cv::Mat col = points4D.col(i);
+    //     float w = col.at<float>(3, 0);
+    //     if (w != 0) {
+    //         pointCloud.emplace_back(
+    //             col.at<float>(0, 0) / w,
+    //             col.at<float>(1, 0) / w,
+    //             col.at<float>(2, 0) / w
+    //         );
+    //     }
+    // }
 }
 
 void jsonTest() {

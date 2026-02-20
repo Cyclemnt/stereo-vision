@@ -20,8 +20,8 @@ public:
     /// @brief Detects features, computes desctiptors and find matches
     /// @param img1 One of the images
     /// @param img2 One of the images
-    /// @return A vector containing matching points on both images
-    std::vector<std::pair<cv::Point2f, cv::Point2f>> getMatches(cv::Mat& img1, cv::Mat& img2);
+    /// @return Two vectors containing matching points on both images (having same index)
+    std::pair<std::vector<cv::Point2f>, std::vector<cv::Point2f>> getMatches(cv::Mat& img1, cv::Mat& img2);
 };
 
 #endif // __FEATUREPIPELINE__

@@ -8,7 +8,7 @@ FeaturePipeline::FeaturePipeline()
 
 FeaturePipeline::~FeaturePipeline() = default;
 
-std::vector<std::pair<cv::Point2f, cv::Point2f>> FeaturePipeline::getMatches(cv::Mat& img1, cv::Mat& img2) {
+std::pair<std::vector<cv::Point2f>, std::vector<cv::Point2f>> FeaturePipeline::getMatches(cv::Mat& img1, cv::Mat& img2) {
 
     std::vector<cv::KeyPoint> keypoints1 = detector->detect(img1);
     std::vector<cv::KeyPoint> keypoints2 = detector->detect(img2);
@@ -19,11 +19,12 @@ std::vector<std::pair<cv::Point2f, cv::Point2f>> FeaturePipeline::getMatches(cv:
     std::vector<cv::DMatch> matches = matcher->match(descriptors1, descriptors2);
 
 
-    std::vector<std::pair<cv::Point2f, cv::Point2f>> points;
+    std::vector<cv::Point2f> points1, points2;
 
     for (const auto& m : matches) {
-        points.emplace_back(keypoints1[m.queryIdx].pt, keypoints2[m.trainIdx].pt);
+        points1.push_back(keypoints1[m.queryIdx].pt);
+        points2.push_back(keypoints2[m.trainIdx].pt);
     }
 
-    return points;
+    return std::make_pair(points1, points2);
 }
