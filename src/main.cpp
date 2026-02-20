@@ -4,9 +4,7 @@
 #include <Eigen/Dense>
 
 #include "camera/stereoCamera.hpp"
-#include "features/detector.hpp"
-#include "features/descriptor.hpp"
-#include "features/matcher.hpp"
+#include "features/featurePipeline.hpp"
 
 #include "files/fileManager.hpp"
 #include <fstream> // Needed for jsonTest(). Should be removed
@@ -63,26 +61,15 @@ void featureDetectorTest() {
     // Feature Detector
     cv::Mat img1 = cv::imread("../kitti_images/000000.png", cv::IMREAD_GRAYSCALE);
     cv::Mat img2 = cv::imread("../kitti_images/000001.png", cv::IMREAD_GRAYSCALE);
-    Detector detec;
-    Descriptor desc;
-    Matcher match;
-    std::vector<cv::KeyPoint> keypoints1 = detec.detect(img1);
-    std::vector<cv::KeyPoint> keypoints2 = detec.detect(img2);
-    cv::Mat descriptors1 = desc.compute(img1, keypoints1);
-    cv::Mat descriptors2 = desc.compute(img2, keypoints2);
-    std::vector<cv::DMatch> matches = match.match(descriptors1, descriptors2);
 
-    cv::Mat vizkp1 = detec.visualize(img1, keypoints1);
-    cv::Mat vizkp2 = detec.visualize(img2, keypoints2);
+    FeaturePipeline f;
 
-    cv::Mat vizmatch = match.visualize(img1, keypoints1, img2, keypoints2, matches);
+    auto pts = f.getMatches(img1, img2);
 
-    cv::imshow("Keypoints 1", vizkp1);
-    cv::imshow("Keypoints 2", vizkp1);
-
-    cv::imshow("Matches", vizmatch);
-
-    cv::waitKey(0);
+    for (auto& pt : pts) {
+        std::cout << pt.first.x << "," << pt.first.y << " <=> " << pt.second.x << "," << pt.second.y << std::endl;
+    }
+    std::cout << "total matches: " << pts.size() << std::endl;
 }
 
 void jsonTest() {
@@ -129,11 +116,11 @@ void jsonTest() {
 
 int main(int argc, char** argv) {
 
-    // featureDetectorTest();
+    featureDetectorTest();
 
     // stereoCamTest();
 
-    jsonTest();
+    // jsonTest();
 
     return 0;
 }
