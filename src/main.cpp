@@ -6,6 +6,8 @@
 #include "camera/stereoCamera.hpp"
 #include "features/featurePipeline.hpp"
 
+#include "camera/calibration.hpp"
+
 #include "files/fileManager.hpp"
 #include <fstream> // Needed for jsonTest(). Should be removed
 
@@ -148,9 +150,17 @@ void jsonTest() {
 
 }
 
+void calibTest() {
+    Calibrator calib;
+
+    if (calib.extractCorners()) {
+        calib.computeAndSave("stereo_params.yml");
+    }
+}
+
 int main(int argc, char** argv) {
 
-    featureDetectorTest();
+    calibTest();
 
     // stereoCamTest();
 
