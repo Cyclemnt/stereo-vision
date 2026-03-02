@@ -40,6 +40,14 @@ bool Calibrator::extractCorners() {
             cv::cornerSubPix(grayL, cornersL, cv::Size(11, 11), cv::Size(-1, -1), cv::TermCriteria(cv::TermCriteria::EPS + cv::TermCriteria::COUNT, 30, 0.01));
             cv::cornerSubPix(grayR, cornersR, cv::Size(11, 11), cv::Size(-1, -1), cv::TermCriteria(cv::TermCriteria::EPS + cv::TermCriteria::COUNT, 30, 0.01));
 
+            // magic: verify orientation
+            float diffL = cornersL.back().y - cornersL.front().y;
+            float diffR = cornersR.back().y - cornersR.front().y;
+            if ((diffL > 0 && diffR < 0) || (diffL < 0 && diffR > 0)) {
+                std::cout << "[!] inversion correction on pair " << i << std::endl;
+                std::reverse(cornersR.begin(), cornersR.end());
+            }
+
             imgPointsL.push_back(cornersL);
             imgPointsR.push_back(cornersR);
             
@@ -66,12 +74,14 @@ void Calibrator::computeAndSave(const std::string& outputYaml) {
 
     // Mono calibrations
     std::cout << "Computing intrinsics matrixes..." << std::endl;
-    cv::calibrateCamera(objectPoints, imgPointsL, imageSize, K1, D1, rvecs, tvecs);
-    cv::calibrateCamera(objectPoints, imgPointsR, imageSize, K2, D2, rvecs, tvecs);
+    double rms1 = cv::calibrateCamera(objectPoints, imgPointsL, imageSize, K1, D1, rvecs, tvecs);
+    double rms2 = cv::calibrateCamera(objectPoints, imgPointsR, imageSize, K2, D2, rvecs, tvecs);
+    std::cout << "RMS1 error: " << rms1 << std::endl;
+    std::cout << "RMS2 error: " << rms2 << std::endl;
     
     // Stereo calibration
     std::cout << "Computing stereo calibration..." << std::endl;
-    int flags = cv::CALIB_FIX_INTRINSIC;
+    int flags = cv::CALIB_USE_INTRINSIC_GUESS;
     double rms = cv::stereoCalibrate(objectPoints, imgPointsL, imgPointsR, K1, D1, K2, D2, imageSize, R, T, E, F, flags, cv::TermCriteria(cv::TermCriteria::COUNT + cv::TermCriteria::EPS, 100, 1e-6));
     std::cout << "Success! RMS error: " << rms << std::endl;
 
