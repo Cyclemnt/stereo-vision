@@ -64,27 +64,22 @@ void Calibrator::computeAndSave(const std::string& outputYaml) {
     cv::Mat K1, D1, K2, D2, R, T, E, F;
     std::vector<cv::Mat> rvecs, tvecs;
 
+    // Mono calibrations
     std::cout << "Computing intrinsics matrixes..." << std::endl;
-    
     cv::calibrateCamera(objectPoints, imgPointsL, imageSize, K1, D1, rvecs, tvecs);
     cv::calibrateCamera(objectPoints, imgPointsR, imageSize, K2, D2, rvecs, tvecs);
     
-    // 1. Stereo calibration
+    // Stereo calibration
     std::cout << "Computing stereo calibration..." << std::endl;
     int flags = cv::CALIB_FIX_INTRINSIC;
     double rms = cv::stereoCalibrate(objectPoints, imgPointsL, imgPointsR, K1, D1, K2, D2, imageSize, R, T, E, F, flags, cv::TermCriteria(cv::TermCriteria::COUNT + cv::TermCriteria::EPS, 100, 1e-6));
     std::cout << "Success! RMS error: " << rms << std::endl;
 
-    // 2. Rectification (to obtain projection matrices P1, P2)
-    cv::Mat R1, R2, P1, P2, Q;
-    cv::stereoRectify(K1, D1, K2, D2, imageSize, R, T, R1, R2, P1, P2, Q);
-
-    // 3. Save
+    // Save
     cv::FileStorage fs(outputYaml, cv::FileStorage::WRITE);
     fs << "K1" << K1 << "D1" << D1;
     fs << "K2" << K2 << "D2" << D2;
     fs << "R" << R << "T" << T;
-    fs << "P1" << P1 << "P2" << P2 << "Q" << Q;
     fs.release();
 
     std::cout << "Matrices saved to: " << outputYaml << std::endl;
