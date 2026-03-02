@@ -8,6 +8,8 @@ bool Calibrator::extractCorners() {
     std::vector<std::string> fnL, fnR;
     cv::glob(pathL + "*.jpg", fnL);
     cv::glob(pathR + "*.jpg", fnR);
+    std::sort(fnL.begin(), fnL.end());
+    std::sort(fnR.begin(), fnR.end());
 
     if (fnL.size() != fnR.size() || fnL.empty()) {
         std::cerr << "Error: Different number of images or empty folder." << std::endl;
@@ -57,20 +59,20 @@ bool Calibrator::extractCorners() {
 }
 
 void Calibrator::computeAndSave(const std::string& outputYaml) {
-    if (objectPoints.size() < 10) {
-        std::cerr << "Warning: Not enough valid pairs for good calibration." << std::endl;
-    }
+    if (objectPoints.size() < 10) std::cerr << "Warning: Not enough valid pairs for good calibration." << std::endl;
 
     cv::Mat K1, D1, K2, D2, R, T, E, F;
+    std::vector<cv::Mat> rvecs, tvecs;
+
+    std::cout << "Computing intrinsics matrixes..." << std::endl;
     
-    std::cout << "Computing stereo calibration..." << std::endl;
-
+    cv::calibrateCamera(objectPoints, imgPointsL, imageSize, K1, D1, rvecs, tvecs);
+    cv::calibrateCamera(objectPoints, imgPointsR, imageSize, K2, D2, rvecs, tvecs);
+    
     // 1. Stereo calibration
-    double rms = cv::stereoCalibrate(objectPoints, imgPointsL, imgPointsR,
-                    K1, D1, K2, D2, imageSize, R, T, E, F,
-                    cv::CALIB_FIX_ASPECT_RATIO + cv::CALIB_SAME_FOCAL_LENGTH,
-                    cv::TermCriteria(cv::TermCriteria::COUNT + cv::TermCriteria::EPS, 100, 1e-6));
-
+    std::cout << "Computing stereo calibration..." << std::endl;
+    int flags = cv::CALIB_FIX_INTRINSIC;
+    double rms = cv::stereoCalibrate(objectPoints, imgPointsL, imgPointsR, K1, D1, K2, D2, imageSize, R, T, E, F, flags, cv::TermCriteria(cv::TermCriteria::COUNT + cv::TermCriteria::EPS, 100, 1e-6));
     std::cout << "Success! RMS error: " << rms << std::endl;
 
     // 2. Rectification (to obtain projection matrices P1, P2)
