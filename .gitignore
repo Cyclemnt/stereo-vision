@@ -6,3 +6,6 @@ build/
 
 # VSCode configs
 .vscode/
+
+# Data
+calibration/

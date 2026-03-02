@@ -17,8 +17,8 @@ private:
     cv::Size imageSize;
 
     // Folder paths
-    std::string pathL = "calibration/left/";
-    std::string pathR = "calibration/right/";
+    std::string pathL = "../calibration/left/";
+    std::string pathR = "../calibration/right/";
 
 public:
     Calibrator(cv::Size board = {7, 5}, float size = 30.5f);

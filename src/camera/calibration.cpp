@@ -6,8 +6,8 @@ Calibrator::Calibrator(cv::Size board, float size)
 
 bool Calibrator::extractCorners() {
     std::vector<std::string> fnL, fnR;
-    cv::glob(pathL + "*.jpg", fnL);
-    cv::glob(pathR + "*.jpg", fnR);
+    cv::glob(pathL + "*.png", fnL);
+    cv::glob(pathR + "*.png", fnR);
     std::sort(fnL.begin(), fnL.end());
     std::sort(fnR.begin(), fnR.end());
 
