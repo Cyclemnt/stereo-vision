@@ -163,9 +163,13 @@ void calibTest() {
 
     StereoRectifier rectifier(K1, D1, K2, D2, R, T, imgSize);
 
-    // get two images
-    // rectifier.process()
-    // display with epipolar lines
+    cv::Mat imgR = cv::imread("../calibration/right/12.png");
+    cv::Mat imgL = cv::imread("../calibration/left/12.png");
+    cv::Mat rectifiedL, rectifiedR;
+
+    rectifier.process(imgL, imgR, rectifiedL, rectifiedR);
+
+    rectifier.vizualize(rectifiedL, rectifiedR);
 }
 
 int main(int argc, char** argv) {

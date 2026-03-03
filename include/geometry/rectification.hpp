@@ -19,6 +19,9 @@ public:
 
     /// @brief Apply rectification on both images
     void process(const cv::Mat& imgL, const cv::Mat& imgR, cv::Mat& outL, cv::Mat& outR);
+
+    /// @brief vizualize rectification with lines
+    void vizualize(const cv::Mat& rectL, const cv::Mat& rectR);
 };
 
 #endif

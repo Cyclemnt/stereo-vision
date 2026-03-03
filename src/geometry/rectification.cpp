@@ -20,3 +20,16 @@ void StereoRectifier::process(const cv::Mat& imgL, const cv::Mat& imgR, cv::Mat&
     cv::remap(imgL, outL, mapL1, mapL2, cv::INTER_LINEAR);
     cv::remap(imgR, outR, mapR1, mapR2, cv::INTER_LINEAR);
 }
+
+void StereoRectifier::vizualize(const cv::Mat& rectL, const cv::Mat& rectR) {
+    cv::Mat canvas;
+    cv::hconcat(rectL, rectR, canvas);
+
+    // line every 25 px
+    for (int y = 0; y < canvas.rows; y += 25) {
+        cv::line(canvas, cv::Point(0, y), cv::Point(canvas.cols, y), cv::Scalar(0, 255, 0), 1);
+    }
+
+    cv::imshow("Rectification", canvas);
+    cv::waitKey(0);
+}
