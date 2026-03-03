@@ -48,6 +48,15 @@ bool Calibrator::extractCorners() {
                 std::reverse(cornersR.begin(), cornersR.end());
             }
 
+            // vizualization
+            // cv::Mat viewL = imgL.clone();
+            // cv::Mat viewR = imgR.clone();
+            // cv::drawChessboardCorners(viewL, boardSize, cornersL, foundL);
+            // cv::drawChessboardCorners(viewR, boardSize, cornersR, foundR);
+            // cv::imshow("Check Left", viewL);
+            // cv::imshow("Check Right", viewR);
+            // cv::waitKey();
+
             imgPointsL.push_back(cornersL);
             imgPointsR.push_back(cornersR);
             
