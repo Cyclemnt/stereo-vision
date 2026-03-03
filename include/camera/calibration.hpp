@@ -27,8 +27,8 @@ public:
     /// @return true if enough pairs detected
     bool extractCorners();
 
-    /// @brief Computes matrixes and export to yaml
-    void computeAndSave(const std::string& outputYaml);
+    /// @brief Computes matrixes
+    void compute(cv::Mat& K1, cv::Mat& D1, cv::Mat& K2, cv::Mat& D2, cv::Mat& R, cv::Mat& T, cv::Size& imgSize);
 };
 
 #endif

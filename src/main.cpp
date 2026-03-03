@@ -7,6 +7,7 @@
 #include "features/featurePipeline.hpp"
 
 #include "camera/calibration.hpp"
+#include "geometry/rectification.hpp"
 
 #include "files/fileManager.hpp"
 #include <fstream> // Needed for jsonTest(). Should be removed
@@ -153,9 +154,18 @@ void jsonTest() {
 void calibTest() {
     Calibrator calib;
 
+    cv::Mat K1, D1, K2, D2, R, T;
+    cv::Size imgSize;
+
     if (calib.extractCorners()) {
-        calib.computeAndSave("stereo_params.yml");
+        calib.compute(K1, D1, K2, D2, R, T, imgSize);
     }
+
+    StereoRectifier rectifier(K1, D1, K2, D2, R, T, imgSize);
+
+    // get two images
+    // rectifier.process()
+    // display with epipolar lines
 }
 
 int main(int argc, char** argv) {

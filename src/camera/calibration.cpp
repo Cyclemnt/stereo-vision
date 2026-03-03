@@ -75,11 +75,12 @@ bool Calibrator::extractCorners() {
     return !objectPoints.empty();
 }
 
-void Calibrator::computeAndSave(const std::string& outputYaml) {
+void Calibrator::compute(cv::Mat& K1, cv::Mat& D1, cv::Mat& K2, cv::Mat& D2, cv::Mat& R, cv::Mat& T, cv::Size& imgSize) {
     if (objectPoints.size() < 10) std::cerr << "Warning: Not enough valid pairs for good calibration." << std::endl;
 
-    cv::Mat K1, D1, K2, D2, R, T, E, F;
+    cv::Mat E, F;
     std::vector<cv::Mat> rvecs, tvecs;
+    imgSize = this->imageSize;
 
     // Mono calibrations
     std::cout << "Computing intrinsics matrixes..." << std::endl;
@@ -92,14 +93,6 @@ void Calibrator::computeAndSave(const std::string& outputYaml) {
     std::cout << "Computing stereo calibration..." << std::endl;
     int flags = cv::CALIB_USE_INTRINSIC_GUESS;
     double rms = cv::stereoCalibrate(objectPoints, imgPointsL, imgPointsR, K1, D1, K2, D2, imageSize, R, T, E, F, flags, cv::TermCriteria(cv::TermCriteria::COUNT + cv::TermCriteria::EPS, 100, 1e-6));
-    std::cout << "Success! RMS error: " << rms << std::endl;
-
-    // Save
-    cv::FileStorage fs(outputYaml, cv::FileStorage::WRITE);
-    fs << "K1" << K1 << "D1" << D1;
-    fs << "K2" << K2 << "D2" << D2;
-    fs << "R" << R << "T" << T;
-    fs.release();
-
-    std::cout << "Matrices saved to: " << outputYaml << std::endl;
+    std::cout << "RMS error: " << rms << std::endl;    
+    std::cout << "Calibration is done" << std::endl;
 }

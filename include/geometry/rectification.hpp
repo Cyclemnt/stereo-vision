@@ -12,9 +12,9 @@ private:
     cv::Mat mapR1, mapR2;
 
 public:
-    StereoRectifier(const Eigen::Matrix3d& K1, const cv::Mat& D1,
-                    const Eigen::Matrix3d& K2, const cv::Mat& D2,
-                    const Eigen::Matrix3d& R,  const Eigen::Vector3d& T,
+    StereoRectifier(const cv::Mat& K1, const cv::Mat& D1,
+                    const cv::Mat& K2, const cv::Mat& D2,
+                    const cv::Mat& R,  const cv::Mat& T,
                     cv::Size imgSize);
 
     /// @brief Apply rectification on both images
