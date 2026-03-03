@@ -8,6 +8,9 @@
 
 #include "camera/calibration.hpp"
 #include "geometry/rectification.hpp"
+#include "features/detector.hpp"
+#include "features/descriptor.hpp"
+#include "features/matcher.hpp"
 
 #include "files/fileManager.hpp"
 #include <fstream> // Needed for jsonTest(). Should be removed
@@ -65,9 +68,9 @@ void featureDetectorTest() {
     cv::Mat img1 = cv::imread("../kitti_images/000000.png", cv::IMREAD_GRAYSCALE);
     cv::Mat img2 = cv::imread("../kitti_images/000001.png", cv::IMREAD_GRAYSCALE);
 
-    FeaturePipeline f;
+    // FeaturePipeline f;
 
-    auto points = f.getMatches(img1, img2);
+    // auto points = f.getMatches(img1, img2);
 
     // // To go further:
     // // Clean points with RANSAC
@@ -170,6 +173,34 @@ void calibTest() {
     rectifier.process(imgL, imgR, rectifiedL, rectifiedR);
 
     rectifier.vizualize(rectifiedL, rectifiedR);
+
+    Detector detector;
+    Descriptor descriptor;
+    StereoMatcher matcher;
+
+    cv::Mat grayL, grayR;
+    cv::cvtColor(rectifiedL, grayL, cv::COLOR_BGR2GRAY);
+    cv::cvtColor(rectifiedR, grayR, cv::COLOR_BGR2GRAY);
+    // cv::GaussianBlur(grayL, grayL, cv::Size(5,5), 1, 1);
+    // cv::GaussianBlur(grayR, grayR, cv::Size(5,5), 1, 1);
+    // cv::Sobel?
+
+    std::vector<cv::KeyPoint> keypoints1 = detector.detect(grayL);
+    std::vector<cv::KeyPoint> keypoints2 = detector.detect(grayR);
+std::cout << keypoints1.size() << " kpts on left, " << keypoints2.size() << " kpts on right" << std::endl;
+
+    detector.visualize(grayL, keypoints1);
+    detector.visualize(grayR, keypoints2);
+
+
+    cv::Mat descriptors1 = descriptor.compute(rectifiedL, keypoints1);
+    cv::Mat descriptors2 = descriptor.compute(rectifiedR, keypoints2);
+
+    std::vector<cv::DMatch> matches = matcher.match(keypoints1, descriptors1, keypoints2, descriptors2);
+std::cout << matches.size() << " matches" << std::endl;
+
+    matcher.visualize(rectifiedL, keypoints1, rectifiedR, keypoints2, matches);
+
 }
 
 int main(int argc, char** argv) {

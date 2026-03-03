@@ -4,18 +4,18 @@
 #include <vector>
 #include <opencv2/opencv.hpp>
 
-class Matcher {
+class StereoMatcher {
 private:
-    cv::Ptr<cv::BFMatcher> matcher;
+    float yThreshold = 2.0f; // Tolérance en pixels sur l'alignement Y
+    float ratioTest = 0.75f; // Test de Lowe pour la robustesse
 
 public:
-    Matcher(/* args */);
+    StereoMatcher(float yTol = 2.0f, float ratio = 0.75f);
 
-    /// @brief Matches two sets of feature descriptors
-    /// @param descriptors1 First set of descriptors
-    /// @param descriptors2 Second set of descriptors
-    /// @return A vector of descriptor matches
-    std::vector<cv::DMatch> match(cv::Mat& descriptors1, cv::Mat& descriptors2) const;
+    /// @brief Match points en utilisant la contrainte épipolaire horizontale
+    std::vector<cv::DMatch> match(
+        const std::vector<cv::KeyPoint>& kptsL, const cv::Mat& descL,
+        const std::vector<cv::KeyPoint>& kptsR, const cv::Mat& descR);
 
     /// @brief Visualize matches between two images
     /// @param img1 First image
@@ -23,8 +23,7 @@ public:
     /// @param img2 Second image
     /// @param kp2 Keypoints from image 2
     /// @param matches Matches between descriptors
-    /// @return Image showing matches
-    cv::Mat visualize(const cv::Mat& img1, const std::vector<cv::KeyPoint>& kp1, const cv::Mat& img2, const std::vector<cv::KeyPoint>& kp2, const std::vector<cv::DMatch>& matches) const;
+    void visualize(const cv::Mat& img1, const std::vector<cv::KeyPoint>& kp1, const cv::Mat& img2, const std::vector<cv::KeyPoint>& kp2, const std::vector<cv::DMatch>& matches) const;
 };
 
 #endif

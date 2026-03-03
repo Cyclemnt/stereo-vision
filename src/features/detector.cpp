@@ -1,4 +1,5 @@
 #include "features/detector.hpp"
+#include <limits>
 
 Detector::Detector() {}
 
@@ -11,13 +12,19 @@ std::vector<cv::KeyPoint> Detector::detect(cv::Mat& gray) const {
     cv::Mat harrisResponse = cv::Mat::zeros(gray.size(), CV_32FC1);
     cv::cornerHarris(gray, harrisResponse, blockSize, apertureSize, k);
 
+    // Compute angle of each px
+    cv::Mat grad_x, grad_y, magnitude, angle;
+    cv::Sobel(gray, grad_x, CV_32F, 1, 0, 3);
+    cv::Sobel(gray, grad_y, CV_32F, 0, 1, 3);
+    cv::phase(grad_x, grad_y, angle, true);
+
     std::vector<cv::KeyPoint> keypoints;
 
     // Define a treshold
-    double maxVal;
+    double maxVal = std::numeric_limits<double>::max();
     cv::minMaxLoc(harrisResponse, nullptr, &maxVal);
-    double threshold = 0.01 * maxVal; // Relative to the max value
-    int nmsWindowSize = 3;
+    double threshold = 0.0001 * maxVal; // Relative to the max value
+    int nmsWindowSize = 5;
     int halfWindow = (nmsWindowSize - 1) * 0.5;
 
     // Read harrisResponse avoiding borders
@@ -42,7 +49,8 @@ std::vector<cv::KeyPoint> Detector::detect(cv::Mat& gray) const {
 
                 // Create a keypoint
                 if (isLocalMax) {
-                    keypoints.emplace_back(cv::Point2f(x, y), 3.0f, -1, val);
+                    float a = angle.at<float>(y, x);
+                    keypoints.emplace_back(cv::Point2f(x, y), 3.0f, a, val);
                 }
             }
         }
@@ -51,7 +59,7 @@ std::vector<cv::KeyPoint> Detector::detect(cv::Mat& gray) const {
     return keypoints;
 }
 
-cv::Mat Detector::visualize(const cv::Mat& image, const std::vector<cv::KeyPoint>& keypoints) const {
+void Detector::visualize(const cv::Mat& image, const std::vector<cv::KeyPoint>& keypoints) const {
     cv::Mat output;
 
     // If input is grayscale, convert to BGR to draw with colors
@@ -64,5 +72,6 @@ cv::Mat Detector::visualize(const cv::Mat& image, const std::vector<cv::KeyPoint
     // Draw keypoints in red
     cv::drawKeypoints(output, keypoints, output, cv::Scalar(0, 0, 255), cv::DrawMatchesFlags::DRAW_RICH_KEYPOINTS);
 
-    return output;
+    cv::imshow("Matches", output);
+    cv::waitKey(0);
 }

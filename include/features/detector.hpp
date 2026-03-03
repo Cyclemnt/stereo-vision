@@ -16,8 +16,7 @@ public:
     /// @brief Visualize keypoints on image
     /// @param image input image (gray or color)
     /// @param keypoints detected keypoints
-    /// @return image with drawn detections
-    cv::Mat visualize(const cv::Mat& image, const std::vector<cv::KeyPoint>& keypoints) const;
+    void visualize(const cv::Mat& image, const std::vector<cv::KeyPoint>& keypoints) const;
 };
 
 #endif
