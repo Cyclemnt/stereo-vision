@@ -23,7 +23,7 @@ std::vector<cv::KeyPoint> Detector::detect(cv::Mat& gray) const {
     // Define a treshold
     double maxVal = std::numeric_limits<double>::max();
     cv::minMaxLoc(harrisResponse, nullptr, &maxVal);
-    double threshold = 0.0001 * maxVal; // Relative to the max value
+    double threshold = 0.000001 * maxVal; // Relative to the max value
     int nmsWindowSize = 5;
     int halfWindow = (nmsWindowSize - 1) * 0.5;
 
@@ -50,7 +50,7 @@ std::vector<cv::KeyPoint> Detector::detect(cv::Mat& gray) const {
                 // Create a keypoint
                 if (isLocalMax) {
                     float a = angle.at<float>(y, x);
-                    keypoints.emplace_back(cv::Point2f(x, y), 3.0f, a, val);
+                    keypoints.emplace_back(cv::Point2f(x, y), nmsWindowSize, a, val);
                 }
             }
         }
@@ -72,6 +72,6 @@ void Detector::visualize(const cv::Mat& image, const std::vector<cv::KeyPoint>& 
     // Draw keypoints in red
     cv::drawKeypoints(output, keypoints, output, cv::Scalar(0, 0, 255), cv::DrawMatchesFlags::DRAW_RICH_KEYPOINTS);
 
-    cv::imshow("Matches", output);
+    cv::imshow("Corners", output);
     cv::waitKey(0);
 }
