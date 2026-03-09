@@ -1,10 +1,10 @@
 #include "camera/calibration.hpp"
 #include <iostream>
 
-Calibrator::Calibrator(cv::Size board, float size) 
-    : boardSize(board), squareSize(size) {}
+Calibrator::Calibrator(std::string path, cv::Size board, float size) 
+    : pathL(path+"left/"), pathR(path+"right/"), boardSize(board), squareSize(size) {}
 
-bool Calibrator::extractCorners() {
+bool Calibrator::extractCorners(bool show) {
     std::vector<std::string> fnL, fnR;
     cv::glob(pathL + "*.png", fnL);
     cv::glob(pathR + "*.png", fnR);
@@ -41,21 +41,30 @@ bool Calibrator::extractCorners() {
             cv::cornerSubPix(grayR, cornersR, cv::Size(11, 11), cv::Size(-1, -1), cv::TermCriteria(cv::TermCriteria::EPS + cv::TermCriteria::COUNT, 30, 0.01));
 
             // magic: verify orientation
-            float diffL = cornersL.back().y - cornersL.front().y;
-            float diffR = cornersR.back().y - cornersR.front().y;
-            if ((diffL > 0 && diffR < 0) || (diffL < 0 && diffR > 0)) {
-                std::cout << "[!] inversion correction on pair " << i << std::endl;
-                std::reverse(cornersR.begin(), cornersR.end());
-            }
+            auto fixOrientation = [](std::vector<cv::Point2f>& pts, int i) {
+                // compute distance from (0,0) for first and last corner
+                float dFirst = pts.front().x * pts.front().x + pts.front().y * pts.front().y;
+                float dLast = pts.back().x * pts.back().x + pts.back().y * pts.back().y;
+                if (dFirst > dLast) {
+                    std::cout << "[!] inversion correction on pair " << i << std::endl;
+                    std::reverse(pts.begin(), pts.end());
+                }
+            };
+
+            fixOrientation(cornersL, i);
+            fixOrientation(cornersR, i);
 
             // vizualization
-            // cv::Mat viewL = imgL.clone();
-            // cv::Mat viewR = imgR.clone();
-            // cv::drawChessboardCorners(viewL, boardSize, cornersL, foundL);
-            // cv::drawChessboardCorners(viewR, boardSize, cornersR, foundR);
-            // cv::imshow("Check Left", viewL);
-            // cv::imshow("Check Right", viewR);
-            // cv::waitKey();
+            if (show) {
+                cv::Mat viewLR;
+                cv::Mat viewL = imgL.clone();
+                cv::Mat viewR = imgR.clone();
+                cv::drawChessboardCorners(viewL, boardSize, cornersL, foundL);
+                cv::drawChessboardCorners(viewR, boardSize, cornersR, foundR);
+                cv::hconcat(viewL, viewR, viewLR);
+                cv::imshow("Chessboard corners", viewLR);
+                cv::waitKey();
+            }
 
             imgPointsL.push_back(cornersL);
             imgPointsR.push_back(cornersR);

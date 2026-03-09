@@ -63,55 +63,6 @@ void stereoCamTest() {
     std::this_thread::sleep_for(std::chrono::milliseconds(3000));
 }
 
-void featureDetectorTest() {
-    // Feature Detector
-    cv::Mat img1 = cv::imread("../kitti_images/000000.png", cv::IMREAD_GRAYSCALE);
-    cv::Mat img2 = cv::imread("../kitti_images/000001.png", cv::IMREAD_GRAYSCALE);
-
-    // FeaturePipeline f;
-
-    // auto points = f.getMatches(img1, img2);
-
-    // // To go further:
-    // // Clean points with RANSAC
-    // std::vector<uchar> mask;
-    // cv::findFundamentalMat(points.first, points.second, cv::FM_RANSAC, 3.0, 0.99, mask);
-    // std::vector<cv::Point2f> cleanPoints1, cleanPoints2;
-    // for(int i = 0; i < mask.size(); ++i) {
-    //     if(mask[i]) {
-    //         cleanPoints1.push_back(points.first[i]);
-    //         cleanPoints2.push_back(points.second[i]);
-    //     }
-    // }
-
-    // // Create P matrixes
-    // // We get K1, K2, R and t from camera calibration
-    // // P1 = K1 * [I | 0]
-    // cv::Mat P1 = cv::Mat::zeros(3, 4, CV_64F);
-    // K1.copyTo(P1(cv::Rect(0, 0, 3, 3)));
-    // // P2 = K2 * [R | T]
-    // cv::Mat P2 = cv::Mat::zeros(3, 4, CV_64F);
-    // cv::Mat RT;
-    // cv::hconcat(R, T, RT); // RT = R|t
-    // P2 = K2 * RT;
-
-    // // Triangulate points
-    // cv::Mat points4D;
-    // cv::triangulatePoints(P1, P2, cleanPoints1, cleanPoints2, points4D);
-    // std::vector<cv::Point3f> pointCloud;
-    // for (int i = 0; i < points4D.cols; ++i) {
-    //     cv::Mat col = points4D.col(i);
-    //     float w = col.at<float>(3, 0);
-    //     if (w != 0) {
-    //         pointCloud.emplace_back(
-    //             col.at<float>(0, 0) / w,
-    //             col.at<float>(1, 0) / w,
-    //             col.at<float>(2, 0) / w
-    //         );
-    //     }
-    // }
-}
-
 void jsonTest() {
     json data;
     Files::ERRORS status;
@@ -154,58 +105,88 @@ void jsonTest() {
 
 }
 
-void calibTest() {
-    Calibrator calib;
 
+cv::Mat computeSparseDisparity(const std::vector<cv::KeyPoint>& kptsL, const std::vector<cv::KeyPoint>& kptsR, const std::vector<cv::DMatch>& matches, cv::Size imgSize) {
+    cv::Mat disparity = cv::Mat::zeros(imgSize, CV_32F);
+
+    for (const auto& m : matches) {
+        const auto& kpL = kptsL[m.queryIdx];
+        const auto& kpR = kptsR[m.trainIdx];
+
+        int x = (int)kpL.pt.x;
+        int y = (int)kpL.pt.y;
+
+        if (x < 0 || x >= imgSize.width || y < 0 || y >= imgSize.height) continue;
+
+        float disp = kpL.pt.x - kpR.pt.x;
+        if (disp > 0) disparity.at<float>(y, x) = disp;
+    }
+
+    return disparity;
+}
+
+void showDisparity(const cv::Mat& disparity) {
+    cv::Mat dispVis;
+    cv::normalize(disparity, dispVis, 0, 255, cv::NORM_MINMAX);
+    dispVis.convertTo(dispVis, CV_8U);
+
+    cv::applyColorMap(dispVis, dispVis, cv::COLORMAP_JET);
+
+    cv::imshow("Disparity", dispVis);
+    cv::waitKey(0);
+}
+
+void theWholeProcess() {
+    // Calibrate
+    Calibrator calib("../calibration/robotnik/", {5, 7}, 30.5f);
     cv::Mat K1, D1, K2, D2, R, T;
     cv::Size imgSize;
-
-    if (calib.extractCorners()) {
+    if (calib.extractCorners(false)) { // change to true to see each detection
         calib.compute(K1, D1, K2, D2, R, T, imgSize);
     }
 
+    // Read
+    cv::Mat imgL = cv::imread("../calibration/robotnik/pic/left/l103.png");
+    cv::Mat imgR = cv::imread("../calibration/robotnik/pic/right/r103.png");
+
+    // Rectify
     StereoRectifier rectifier(K1, D1, K2, D2, R, T, imgSize);
-
-    cv::Mat imgR = cv::imread("../calibration/right/12.png");
-    cv::Mat imgL = cv::imread("../calibration/left/12.png");
     cv::Mat rectifiedL, rectifiedR;
-
     rectifier.process(imgL, imgR, rectifiedL, rectifiedR);
-
     rectifier.vizualize(rectifiedL, rectifiedR);
 
-    Detector detector;
-    Descriptor descriptor;
-    StereoMatcher matcher;
-
+    // Convert to grayscale
     cv::Mat grayL, grayR;
     cv::cvtColor(rectifiedL, grayL, cv::COLOR_BGR2GRAY);
     cv::cvtColor(rectifiedR, grayR, cv::COLOR_BGR2GRAY);
-    // cv::GaussianBlur(grayL, grayL, cv::Size(5,5), 1, 1);
-    // cv::GaussianBlur(grayR, grayR, cv::Size(5,5), 1, 1);
-    // cv::Sobel?
 
+    // Detect keypoints 
+    Detector detector;
     std::vector<cv::KeyPoint> keypoints1 = detector.detect(grayL);
     std::vector<cv::KeyPoint> keypoints2 = detector.detect(grayR);
-std::cout << keypoints1.size() << " kpts on left, " << keypoints2.size() << " kpts on right" << std::endl;
-
+    std::cout << keypoints1.size() << " kpts on left, " << keypoints2.size() << " kpts on right" << std::endl;
     detector.visualize(grayL, keypoints1);
     detector.visualize(grayR, keypoints2);
 
-
+    // Descript keypoints
+    Descriptor descriptor;
     cv::Mat descriptors1 = descriptor.compute(rectifiedL, keypoints1);
     cv::Mat descriptors2 = descriptor.compute(rectifiedR, keypoints2);
 
+    // Match keypoints
+    StereoMatcher matcher;
     std::vector<cv::DMatch> matches = matcher.match(keypoints1, descriptors1, keypoints2, descriptors2);
-std::cout << matches.size() << " matches" << std::endl;
-
+    std::cout << matches.size() << " matches" << std::endl;
     matcher.visualize(rectifiedL, keypoints1, rectifiedR, keypoints2, matches);
 
+    // Compute sparse disparity map
+    cv::Mat disparity = computeSparseDisparity(keypoints1, keypoints2, matches, imgSize);
+    showDisparity(disparity);
 }
 
 int main(int argc, char** argv) {
 
-    calibTest();
+    theWholeProcess();
 
     // stereoCamTest();
 
