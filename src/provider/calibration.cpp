@@ -2,7 +2,7 @@
 #include <iostream>
 
 Calibrator::Calibrator(std::string path, cv::Size board, float size) 
-    : pathL(path+"left/"), pathR(path+"right/"), boardSize(board), squareSize(size) {}
+    : boardSize(board), squareSize(size), pathL(path+"left/"), pathR(path+"right/") {}
 
 bool Calibrator::extractCorners(bool show) {
     std::vector<std::string> fnL, fnR;
