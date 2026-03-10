@@ -55,6 +55,58 @@ void stereoCamTest()
     // Camera::showPicture(leftPic);
     // Camera::showPicture(rightPic);
 
+    // for (int i = 0; i < 50; i++) {
+    //     std::pair<cv::Mat, cv::Mat> pair = stereo->capturePair();
+
+    //     cv::imwrite(std::string("calibration/Left/pic") + std::to_string(
+    //         std::chrono::steady_clock::now().time_since_epoch().count()
+    //     ), pair.first);
+    //     cv::imwrite(std::string("calibration/Right/pic") + std::to_string(
+    //         std::chrono::steady_clock::now().time_since_epoch().count()
+    //     ), pair.second);
+
+    //     std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+
+    // }
+
+    delete stereo;
+
+    std::cout << "deteled stereo" << std::endl;
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(3000));
+}
+
+void stereoImgTest()
+{
+    StereoSystem<Image> *stereo;
+    {
+        // Scope to limit access to leftCamera and rightCamera (they become nullptr after the std::move)
+        std::unique_ptr<Image> leftImage = std::make_unique<Image>("l0.png");
+        std::unique_ptr<Image> rightImage = std::make_unique<Image>("r0.png");
+
+        stereo = new StereoSystem<Image>(std::move(leftImage), std::move(rightImage));
+    }
+    std::cout << stereo->leftDevice() << "\n";
+    std::cout << stereo->rightDevice() << std::endl;
+
+    // stereo->openLeftCameraFeed();
+    // stereo->openRightCameraFeed();
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(2000));
+
+    cv::Mat leftPic = stereo->leftDevice().getPicture();
+    ImageSource::showPicture(leftPic);
+    // stereo->openCameraFeeds();
+    // stereo->start();
+
+    // cv::Mat leftPic = stereo->left().getPicture();
+    // std::cout << "Left pic empty : " << leftPic.empty() << std::endl;
+    // cv::Mat rightPic = stereo->right().getPicture();
+    // std::cout << "Right pic empty : " << rightPic.empty() << std::endl;
+
+    // Camera::showPicture(leftPic);
+    // Camera::showPicture(rightPic);
+
     // std::this_thread::sleep_for(std::chrono::milliseconds(750));
 
     delete stereo;
@@ -153,6 +205,11 @@ void jsonTest() {
         std::cout << Files::to_string(status) << std::endl;
     }
 
+cv::Mat takePictureCalib(Camera *cam)
+{
+    cam->takePicture();
+    cv::Mat picture = cam->getPicture();
+    return picture;
 }
 
 void calibTest() {
