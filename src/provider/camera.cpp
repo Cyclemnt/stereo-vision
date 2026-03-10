@@ -1,21 +1,27 @@
-#include "camera/camera.hpp"
+#include "provider/camera.hpp"
 
+#include <filesystem>
 #include <iostream>
 #include <stdexcept>
-#include <filesystem>
 
 /*
 Great commands for cameras
 v4l2-ctl --device=/dev/videoX <options>
 options :
-    --list-ctrls : shows the parameters of the cameras (brightness, saturation...)
+    --list-ctrls : shows the parameters of the cameras (brightness,
+saturation...)
 */
 
-void Camera::run(std::atomic<bool>& shouldRun, std::mutex& mtx, std::chrono::time_point < std::chrono::steady_clock> startTime) {
-    delete this->cameraAvailable; // Gets rid of the last mutex (needed when using a camera alone)
+void Camera::run(std::atomic<bool> &shouldRun,
+                 std::mutex &mtx,
+                 std::chrono::time_point<std::chrono::steady_clock> startTime)
+{
+    delete this->cameraAvailable; // Gets rid of the last mutex (needed when
+                                  // using a camera alone)
     this->cameraAvailable = &mtx;
     std::chrono::time_point nextShutter = startTime; // Would be a parameter
-    while (shouldRun) {
+    while (shouldRun)
+    {
         // shouldRun is owned by StereoCamera, in the main thread
         std::this_thread::sleep_until(nextShutter); // FPS of the camera captures
 
@@ -29,36 +35,47 @@ void Camera::run(std::atomic<bool>& shouldRun, std::mutex& mtx, std::chrono::tim
 
         nextShutter += std::chrono::milliseconds(int(1 / this->fps) * 1000);
 
-        if ((nextShutter - std::chrono::steady_clock::now()).count() > 0) {
+        if ((nextShutter - std::chrono::steady_clock::now()).count() > 0)
+        {
             // nextShutter time already passed
-            std::cerr << this->cameraSavedName << " is not keeping up the max-fps pace !" << std::endl;
+            std::cerr << this->deviceSavedName
+                      << " is not keeping up the max-fps pace !" << std::endl;
         }
     }
 }
 
-void Camera::setupCamera() {
+void Camera::setupCamera()
+{
     // Opens the camera at the given uri
     assert(this->cameraUri != ""); // cameraUri is empty, can't open camera
 
-    this->cam = cv::VideoCapture(this->cameraUri, cv::CAP_V4L2); // in linux check $ ls /dev/video*, and check what camera to pick using ffplay /dev/videoX (install ffmpeg)
-    if (!this->cam.isOpened()) {
+    this->cam = cv::VideoCapture(
+        this->cameraUri,
+        cv::CAP_V4L2); // in linux check $ ls /dev/video*, and check what camera
+                       // to pick using ffplay /dev/videoX (install ffmpeg)
+    if (!this->cam.isOpened())
+    {
         std::cerr << "ERROR: Could not open camera" << std::endl;
         throw std::runtime_error("Camera not available on " + this->cameraUri);
     }
 
     // Check with v4l2-ctl --device=/dev/videoX --list-formats-ext
     // std::cout << "Setting cam to YUYV : " << set_ok << "\n";
-    if (!this->cam.set(cv::CAP_PROP_FOURCC, cv::VideoWriter::fourcc('Y', 'U', 'Y', 'V'))) {
+    if (!this->cam.set(cv::CAP_PROP_FOURCC,
+                       cv::VideoWriter::fourcc('Y', 'U', 'Y', 'V')))
+    {
         // Fallback for some cameras
         // std::cout << "Setting cam to YUY2 : " << set_ok << std::endl;
-        if (!this->cam.set(cv::CAP_PROP_FOURCC, cv::VideoWriter::fourcc('Y', 'U', 'Y', '2'))) {
+        if (!this->cam.set(cv::CAP_PROP_FOURCC,
+                           cv::VideoWriter::fourcc('Y', 'U', 'Y', '2')))
+        {
             throw std::runtime_error("Camera could not be read in YUYV nor YUY2.");
         }
     }
 
     this->cam.set(cv::CAP_PROP_FRAME_WIDTH, 1280);
     this->cam.set(cv::CAP_PROP_FRAME_HEIGHT, 800);
-    this->frame = new cv::Mat3s(800, 1280); // Might not be Mat3s for every camera. Needed for giving the size before the first frame
+    // this->frame = new cv::Mat3s(800, 1280); // As OpenCV reallocates everything on the heap, this initialization is not needed.
     this->cam.set(cv::CAP_PROP_FPS, 10);
     this->fps = 10;
 
@@ -70,14 +87,18 @@ void Camera::setupCamera() {
     //     << (char)((fourcc_val >> 16) & 0xFF)
     //     << (char)((fourcc_val >> 24) & 0xFF) << std::endl;
 
-    // std::cout << "Actual resolution: " << this->cam.get(cv::CAP_PROP_FRAME_WIDTH)
+    // std::cout << "Actual resolution: " <<
+    // this->cam.get(cv::CAP_PROP_FRAME_WIDTH)
     //     << "x" << this->cam.get(cv::CAP_PROP_FRAME_HEIGHT) << std::endl;
-    // std::cout << "Actual FPS: " << this->cam.get(cv::CAP_PROP_FPS) << std::endl;
+    // std::cout << "Actual FPS: " << this->cam.get(cv::CAP_PROP_FPS) <<
+    // std::endl;
 
     // Disable autoexposure
-    if (!this->cam.set(cv::CAP_PROP_AUTO_EXPOSURE, 0.25)) {
+    if (!this->cam.set(cv::CAP_PROP_AUTO_EXPOSURE, 0.25))
+    {
         std::cout << "AE set to 0.25 failed" << std::endl;
-        if (!this->cam.set(cv::CAP_PROP_AUTO_EXPOSURE, 1)) {
+        if (!this->cam.set(cv::CAP_PROP_AUTO_EXPOSURE, 1))
+        {
             std::cout << "AE set to 1 failed" << std::endl;
             throw std::runtime_error("Could not disable camera auto-exposure.");
         }
@@ -96,58 +117,46 @@ void Camera::setupCamera() {
 
     // Sets up the rolling-window FPS counter
     assert(this->fps != 0);
-    frameTimestamps.resize(
-        this->fps * this->rollingWindowSeconds + 1, // This should be an integer thanks
-        std::chrono::steady_clock::now()
-    );
-
-    this->computeK();
+    frameTimestamps.resize(this->fps * this->rollingWindowSeconds +
+                               1, // This should be an integer thanks
+                           std::chrono::steady_clock::now());
 }
 
-void Camera::computeK() {
-    /*
-    K = f_x   s  c_x
-          0 f_y  c_y
-          0   0    1
-    */
-    K(0, 0) = 1078;// f_x
-    K(1, 1) = 1078;// f_y
-    K(0, 1) = this->skew;
-    K(0, 2) = this->definitionPixels.first; // c_x
-    K(1, 2) = this->definitionPixels.second; // c_y
-    K(2, 2) = 1;
-}
-
-void Camera::openCameraFeed() {
+void Camera::openCameraFeed()
+{
     if (!cam.isOpened())
         setupCamera();
 
     // create a window to display the images from the webcam
-    cv::namedWindow("Video Feed of Camera " + this->cameraSavedName,
-        cv::WINDOW_AUTOSIZE |
-        cv::WINDOW_KEEPRATIO |
-        cv::WINDOW_GUI_EXPANDED
-    );
+    cv::namedWindow(
+        "Video Feed of Camera " + this->deviceSavedName,
+        cv::WINDOW_AUTOSIZE | cv::WINDOW_KEEPRATIO | cv::WINDOW_GUI_EXPANDED);
 
-    while (true) {
-        try {
-            cam >> *this->frame;
+    while (true)
+    {
+        try
+        {
+            cam >> this->frame;
             // show the image on the window
-            cv::imshow("Video Feed of Camera " + this->cameraSavedName, *this->frame);
+            cv::imshow("Video Feed of Camera " + this->deviceSavedName, this->frame);
             // wait (10ms) for esc key to be pressed to stop
-            if (cv::waitKey(10) == 27) {
-                cv::destroyWindow("Video Feed of Camera " + this->cameraSavedName);
+            if (cv::waitKey(10) == 27)
+            {
+                cv::destroyWindow("Video Feed of Camera " + this->deviceSavedName);
                 cam.release();
                 break;
             }
         }
-        catch (const cv::Exception& ex) {
-            throw std::runtime_error("Camera not available on " + this->cameraUri + " anymore.");
+        catch (const cv::Exception &ex)
+        {
+            throw std::runtime_error("Camera not available on " + this->cameraUri +
+                                     " anymore.");
         }
     }
 }
 
-void Camera::takePicture() {
+void Camera::takePicture()
+{
     /*
     Asks the camera to take a frame
     Updates the real FPS stats
@@ -155,70 +164,86 @@ void Camera::takePicture() {
     if (!this->cam.isOpened())
         setupCamera();
 
-    std::cout << "[" << std::chrono::high_resolution_clock::now().time_since_epoch().count() << "] Taking picture from " << this->cameraSavedName << std::endl;
+    std::cout
+        << "["
+        << std::chrono::high_resolution_clock::now().time_since_epoch().count()
+        << "] Taking picture from " << this->deviceSavedName << std::endl;
     // this->cameraAvailable->lock();
-    if (!this->cam.grab()) {
+    if (!this->cam.grab())
+    {
         // this->cameraAvailable->unlock();
-        std::cout << "[" << std::chrono::high_resolution_clock::now().time_since_epoch().count() << "] Taking picture from " << this->cameraSavedName << " END" << std::endl;
-        throw std::runtime_error("Camera not available on " + this->cameraUri + " anymore.");
+        std::cout
+            << "["
+            << std::chrono::high_resolution_clock::now().time_since_epoch().count()
+            << "] Taking picture from " << this->deviceSavedName << " END"
+            << std::endl;
+        throw std::runtime_error("Camera not available on " + this->cameraUri +
+                                 " anymore.");
     }
     this->newCapture = true;
 
     // For rolling window captureFps()
-    this->frameTimestamps[this->rollingWindowIndex] = std::chrono::steady_clock::now();
-    this->rollingWindowIndex = (this->rollingWindowIndex + 1) % this->frameTimestamps.size();
-
+    this->frameTimestamps[this->rollingWindowIndex] =
+        std::chrono::steady_clock::now();
+    this->rollingWindowIndex =
+        (this->rollingWindowIndex + 1) % this->frameTimestamps.size();
 }
 
-cv::Mat* Camera::getPicture() {
-    // TODO : I should test what happens if getPicture is called more often than takePicture()
-    if (!this->newCapture) {
+const cv::Mat Camera::getPicture() const
+{
+    // TODO : I should test what happens if getPicture is called more often than
+    if (!this->newCapture)
+    {
         // getPicture is called more often than takePicture
         // Returning the same content early to save thread time
-        std::cout << "[" << std::chrono::high_resolution_clock::now().time_since_epoch().count() << "] Retrieved saved picture from " << this->cameraSavedName << std::endl;
+        std::cout
+            << "["
+            << std::chrono::high_resolution_clock::now().time_since_epoch().count()
+            << "] Retrieved saved picture from " << this->deviceSavedName
+            << std::endl;
 
         return this->frame;
     }
 
-    std::cout << "[" << std::chrono::high_resolution_clock::now().time_since_epoch().count() << "] Retrieving picture from " << this->cameraSavedName << std::endl;
+    std::cout
+        << "["
+        << std::chrono::high_resolution_clock::now().time_since_epoch().count()
+        << "] Retrieving picture from " << this->deviceSavedName << std::endl;
+
     // It looks like mutexes are not needed here, and I don't understand why.
-    // std::cout << "[" << std::chrono::high_resolution_clock::now().time_since_epoch().count() << "] Retreived picture from " << this->cameraSavedName << std::endl;
-    this->cam.retrieve(*this->frame);
+    // std::cout << "[" <<
+    // std::chrono::high_resolution_clock::now().time_since_epoch().count() << "]
+    // Retreived picture from " << this->deviceSavedName << std::endl;
+    this->cam.retrieve(this->frame);
     this->newCapture = false;
-    // std::cout << "[" << std::chrono::high_resolution_clock::now().time_since_epoch().count() << "] Retrieved picture from " << this->cameraSavedName << " END" << std::endl;
+    // std::cout << "[" <<
+    // std::chrono::high_resolution_clock::now().time_since_epoch().count() << "]
+    // Retrieved picture from " << this->deviceSavedName << " END" << std::endl;
 
     return this->frame;
 }
 
-double Camera::getCaptureFps() const {
+double Camera::getCaptureFps() const
+{
     /*
     Does a rolling window measure, based on takePicture successes
     */
-    size_t nextIndex = (this->rollingWindowIndex + 1) % this->frameTimestamps.size();
-    std::chrono::duration<double, std::milli> msForNFrames = this->frameTimestamps[nextIndex] - this->frameTimestamps[this->rollingWindowIndex];
+    size_t nextIndex =
+        (this->rollingWindowIndex + 1) % this->frameTimestamps.size();
+    std::chrono::duration<double, std::milli> msForNFrames =
+        this->frameTimestamps[nextIndex] -
+        this->frameTimestamps[this->rollingWindowIndex];
 
-    if (msForNFrames < std::chrono::duration<double, std::milli>(1)) {
+    if (msForNFrames < std::chrono::duration<double, std::milli>(1))
+    {
         // Division by zero prevention
         return 0;
     }
     return (1 / msForNFrames.count()) / this->rollingWindowSeconds * 1000;
 }
 
-void Camera::showPicture(cv::Mat image) {
-    cv::namedWindow("Picture",
-        cv::WINDOW_AUTOSIZE |
-        cv::WINDOW_KEEPRATIO |
-        cv::WINDOW_GUI_EXPANDED
-    );
-
-    while (true) {
-        cv::imshow("Picture", image);
-        if (cv::waitKey(10) == 27)
-            break;
-    }
-}
-
-std::vector<std::string> Camera::availableCameras() {
+std::vector<std::string> Camera::availableCameras()
+{
     /*
     List all cameras wired (/dev/video*) on Linux
     TODO : This will break on other systems
@@ -227,13 +252,15 @@ std::vector<std::string> Camera::availableCameras() {
     std::vector<std::string> medias;
 
 #if defined(__linux__)
-    for (const auto& entry : std::filesystem::directory_iterator("/dev/")) {
+    for (const auto &entry : std::filesystem::directory_iterator("/dev/"))
+    {
         std::string path = entry.path();
-        if (path.find("/dev/video") != std::string::npos) {
-
+        if (path.find("/dev/video") != std::string::npos)
+        {
             // More precise checks, maybe ?
             // Would be incredible to have a unique identifier for any cameras
-            // Or run a Bash file that executes : udevadm info --query=all -n /dev/videoX
+            // Or run a Bash file that executes : udevadm info --query=all -n
+            // /dev/videoX
 
             medias.push_back(entry.path());
         }
@@ -245,29 +272,32 @@ std::vector<std::string> Camera::availableCameras() {
     throw std::system_error()
 #endif
 
-        return medias;
+    return medias;
 }
 
-bool Camera::save(std::string path) const {
+bool Camera::save(std::string path) const
+{
     // Writes configuration of camera
     // What the hell should be saved here ?
     // Should we also save exposure... ? or just principalPoint... ?
     return false;
 }
 
-std::ostream& operator<<(std::ostream& out, Camera const& camera) {
+std::ostream &operator<<(std::ostream &out, Camera const &camera)
+{
     return out << "Camera object :"
-        << "\n  is camera open : " << camera.cam.isOpened()
-        << "\n  cameraSavedName : " << camera.cameraSavedName
-        << "\n  cameraUri : " << camera.cameraUri
-        << "\n  focalLength : " << camera.focalLength
-        << "\n  advertisedFPS : " << camera.fps
-        << "\n  captureFPS : " << camera.getCaptureFps()
-        << "\n  definition : (" << camera.definitionPixels.first << ";" << camera.definitionPixels.second << ") px";
-
+               << "\n  is camera open : " << camera.cam.isOpened()
+               << "\n  deviceSavedName : " << camera.deviceSavedName
+               << "\n  cameraUri : " << camera.cameraUri
+               << "\n  focalLength : " << camera.focalLength
+               << "\n  advertisedFPS : " << camera.fps
+               << "\n  captureFPS : " << camera.getCaptureFps()
+               << "\n  definition : (" << camera.definitionPixels.first << ";"
+               << camera.definitionPixels.second << ") px";
 }
 
-void to_json(json& j, const Camera& cam) {
+void to_json(json &j, const Camera &cam)
+{
     // Eigen matrices not being automatically cast for JSON, we implement our own
     K_datatype K_vals[9];
     // values in Eigen::Matrix<...>::data are stored column after column
@@ -285,10 +315,11 @@ void to_json(json& j, const Camera& cam) {
         {"fps", cam.fps},
         {"definition", cam.definitionPixels},
         {"calibration matrix", K_vals},
-        });
+    });
 }
 
-void from_json(const json& j, Camera& cam) {
+void from_json(const json &j, Camera &cam)
+{
     j.at("URI").get_to(cam.cameraUri);
     j.at("focalLength").get_to(cam.focalLength);
     j.at("skew").get_to(cam.skew);
@@ -300,12 +331,12 @@ void from_json(const json& j, Camera& cam) {
     K_datatype K_vals[9];
     j.at("calibration matrix").get_to(K_vals);
 
-    for (int i = 0; i < 9; i++) {
+    for (int i = 0; i < 9; i++)
+    {
         std::cout << "from_json reading of K : " << K_vals[i] << std::endl;
         cam.K(i) = K_vals[i];
     }
     // So cam.K is : K_vals[0] K_vals[3] K_vals[6]
     //               K_vals[1] K_vals[4] K_vals[7]
     //               K_vals[2] K_vals[5] K_vals[8]
-
 }

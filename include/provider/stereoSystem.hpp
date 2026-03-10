@@ -6,13 +6,19 @@
 #include <thread>
 #include <atomic>
 
-#include "camera/camera.hpp"
+#include "provider/camera.hpp"
+#include "provider/image.hpp"
 
 /*
 StereoCamera manages two threads, corresponding to the two cameras aquisitions
 */
 
-class StereoCamera {
+template <typename T>
+concept ImageProvider = std::derived_from<T, ImageSource>;
+
+template <ImageProvider Provider>
+class StereoSystem
+{
 private:
     std::atomic<bool> isCapturing;
     std::mutex leftCamMtx;
@@ -20,23 +26,24 @@ private:
     std::thread leftT;
     std::thread rightT;
 
-    std::unique_ptr<Camera> leftCam;
-    std::unique_ptr<Camera> rightCam;
+    std::unique_ptr<Provider> leftDev;
+    std::unique_ptr<Provider> rightDev;
 
 public:
-    // This constructor allow for 
+    // This constructor allow for
     // - Create both cameras
     // - Tweak each camera's settings / check if functionning well
     // - Create the StereoCamera object, which takes full control of the cameras
-    StereoCamera(std::unique_ptr<Camera> left, std::unique_ptr<Camera> right) {
+    StereoSystem(std::unique_ptr<Provider> left, std::unique_ptr<Provider> right)
+    {
         // Takes ownership of both cameras
-        this->leftCam = std::move(left);
-        this->rightCam = std::move(right);
+        this->leftDev = std::move(left);
+        this->rightDev = std::move(right);
     }
 
-    StereoCamera(std::string leftCameraName, std::string rightCameraName); // The two cameras might not be the same
+    StereoSystem(std::string leftCameraName, std::string rightCameraName); // The two cameras might not be the same
 
-    ~StereoCamera();
+    ~StereoSystem();
 
     // Having access to cameras when they are already rolling syncronized would disrupt everything
     // So we first get the two cameras working independantly
@@ -45,8 +52,14 @@ public:
     // Camera& left() noexcept;
     // Camera& right() noexcept;
 
-    const Camera& left() const noexcept;
-    const Camera& right() const noexcept;
+    const Provider &leftDevice() const noexcept
+    {
+        return *this->leftDev;
+    }
+    const Provider &rightDevice() const noexcept
+    {
+        return *this->rightDev;
+    }
 
     /// @brief Open the Left camera from the Stereo system (to check integration)
     void openLeftCameraFeed();

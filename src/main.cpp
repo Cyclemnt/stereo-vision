@@ -3,10 +3,10 @@
 #include <opencv2/opencv.hpp>
 #include <Eigen/Dense>
 
-#include "camera/stereoCamera.hpp"
+#include "provider/stereoSystem.hpp"
 #include "features/featurePipeline.hpp"
 
-#include "camera/calibration.hpp"
+#include "provider/calibration.hpp"
 #include "geometry/rectification.hpp"
 #include "features/detector.hpp"
 #include "features/descriptor.hpp"
@@ -23,8 +23,9 @@ void availableCamTest() {
     std::cout << std::endl;
 }
 
-void stereoCamTest() {
-    StereoCamera* stereo;
+void stereoCamTest()
+{
+    StereoSystem<Camera> *stereo;
     {
         // Scope to limit access to leftCamera and rightCamera (they become nullptr after the std::move)
         std::unique_ptr<Camera> leftCamera = std::make_unique<Camera>("Left");
@@ -36,10 +37,10 @@ void stereoCamTest() {
         leftCamera->setupCamera();
         rightCamera->setupCamera();
 
-        stereo = new StereoCamera(std::move(leftCamera), std::move(rightCamera));
+        stereo = new StereoSystem<Camera>(std::move(leftCamera), std::move(rightCamera));
     }
-    // std::cout << stereo->left() << "\n";
-    // std::cout << stereo->right() << std::endl;
+    std::cout << stereo->leftDevice() << "\n";
+    std::cout << stereo->rightDevice() << std::endl;
 
     // stereo->openLeftCameraFeed();
     // stereo->openRightCameraFeed();

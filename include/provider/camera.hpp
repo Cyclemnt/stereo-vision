@@ -10,62 +10,49 @@
 #include <atomic>
 #include <chrono>
 
-#include <opencv2/opencv.hpp> 
+#include <opencv2/opencv.hpp>
 #include <Eigen/Dense>
 
-#include "files/fileManager.hpp"
+#include "provider/imageSource.hpp"
 
 using K_datatype = double; // Need to be centralized, as the type is needed for JSON files (serialization)
 
-class Camera {
+class Camera : public ImageSource
+{
 private:
     // Multi-threading protections, needed once used by StereoCamera
-    std::mutex* cameraAvailable; // Can't retrieve and grab at the same time (check grab when retrieve as grab protection comes from main thread, follow the flow)
-    bool newCapture;
+    std::mutex *cameraAvailable; // Can't retrieve and grab at the same time (check grab when retrieve as grab protection comes from main thread, follow the flow)
+    mutable bool newCapture;
 
     // OpenCV camera device & saved frame
-    cv::VideoCapture cam;
-    cv::Mat* frame = nullptr; // I save the frame here to, later, have parallelization, so the camera will take their picture simultaneously
+    mutable cv::VideoCapture cam;
     std::string cameraUri = "/dev/video1";
-    std::string cameraSavedName = "unknownCamera"; // Used to save camera presets, makes working with multiple cameras easier
-
-    // Intrinsic paramaters
-    // Must be set BEFORE creating the StereoCamera object
-    double focalLength = std::numeric_limits<double>::max();
-    double skew = std::numeric_limits<double>::max();
-    std::pair<double, double> principalPoint = std::make_pair(
-        std::numeric_limits<double>::max(),
-        std::numeric_limits<double>::max()
-    );
-    int fps = 0; // Do not support decimal fps
-    std::pair<int, int> definitionPixels = std::make_pair(0, 0);
-
-    Eigen::Matrix<K_datatype, 3, 3> K = Eigen::Matrix<K_datatype, 3, 3>::Zero(); // Calibration matrix {f_x s 0 \ 0 f_y 0 \ 0 0 1}
-    // f_x = focalLength * definitionPixels.first
-    // f_x = focalLength * definitionPixels.second
 
     // FPS statistics
-    int rollingWindowSeconds = 1; // seconds of the rooling window (the greater this value, the smoother the counter)
+    int rollingWindowSeconds = 1;  // seconds of the rooling window (the greater this value, the smoother the counter)
     size_t rollingWindowIndex = 0; // Where next timestamp will be placed
     // frameTimestamps could be a std::array, but it's size depends on the camera fps, unknown at compile-time
-    std::vector<std::chrono::steady_clock::time_point> frameTimestamps{ 10 }; // Used for rolling-window captureFps(), default to a size of 10
+    std::vector<std::chrono::steady_clock::time_point> frameTimestamps{10}; // Used for rolling-window captureFps(), default to a size of 10
 
-    void computeK();
+    // void computeK();
+
 public:
-    // Use this when using a new camera 
-    Camera(std::string cameraUri, std::pair<int, int> definition, double focalLength, std::string cameraName = "Unnamed Camera") {
+    // Use this when using a new camera
+    Camera(std::string cameraUri, std::pair<int, int> definition, double focalLength, std::string cameraName = "Unnamed Camera")
+    {
         this->cameraUri = cameraUri;
         this->definitionPixels = definition;
         this->focalLength = focalLength;
-        this->cameraSavedName = cameraName;
+        this->deviceSavedName = cameraName;
         this->cameraAvailable = new std::mutex();
         this->cameraAvailable->unlock();
         setupCamera();
     };
 
-    Camera(std::string cameraName) {
+    Camera(std::string cameraName)
+    {
         assert(cameraName.size() != 0);
-        this->cameraSavedName = cameraName;
+        this->deviceSavedName = cameraName;
         this->cameraAvailable = new std::mutex();
         this->cameraAvailable->unlock();
 
@@ -83,18 +70,19 @@ public:
     /// @param shouldRun Reference to a bool, to stop the infinite loop
     /// @param mtx Mutex to conserve data integrity
     /// @param startTime Time when the first capture will happen, used to syncronize with the other camera (if any)
-    void run(std::atomic<bool>& shouldRun, std::mutex& mtx, std::chrono::time_point<std::chrono::steady_clock> startTime);
-
+    void run(std::atomic<bool> &shouldRun, std::mutex &mtx, std::chrono::time_point<std::chrono::steady_clock> startTime);
 
     /// @brief Sets all values and camera parameters to the camera device
     void setupCamera();
 
-    void setName(std::string newName) {
-        assert(cameraSavedName.size() != 0);
-        this->cameraSavedName = newName;
+    void setName(std::string newName)
+    {
+        assert(deviceSavedName.size() != 0);
+        this->deviceSavedName = newName;
     }
 
-    void setUri(std::string newUri) {
+    void setUri(std::string newUri)
+    {
         this->cameraUri = newUri;
     }
 
@@ -109,16 +97,16 @@ public:
     void openCameraFeed();
 
     /// @brief Orders the camera device to take a picture
-    void takePicture(); // OpenCV grab
+    void takePicture() override; // OpenCV grab
 
     /// @brief Save the picture taken by the camera device to memory
     /// @return Camera device image
-    cv::Mat* getPicture(); // OpenCV retrieve
+    const cv::Mat getPicture() const override; // OpenCV retrieve
 
     /// @brief Save the camera parameters/settings to a file, for later reuse
     /// @param path URI for the camera path
     /// @return was the file sucessfully written
-    bool save(std::string path) const;
+    bool save(std::string path) const override;
 
     /// @brief Gives you all possible uris for cameras accessible from the computer
     /// @return Vector of URIs (type /dev/video1, /dev/video2, ...)
@@ -128,13 +116,11 @@ public:
     /// @param img OpenCV image
     static void showPicture(cv::Mat img);
 
-    friend std::ostream& operator<<(std::ostream&, Camera const&);
+    friend std::ostream &operator<<(std::ostream &, Camera const &);
 
     // For JSON - object conversion
-    friend void to_json(json&, const Camera&);
-    friend void from_json(const json&, Camera&);
+    friend void to_json(json &, const Camera &);
+    friend void from_json(const json &, Camera &);
 };
-
-
 
 #endif

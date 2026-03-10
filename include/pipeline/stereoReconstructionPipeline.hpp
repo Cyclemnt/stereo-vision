@@ -3,12 +3,11 @@
 
 #include <memory>
 #include <string>
-class StereoCamera;
-#include "camera/stereoCamera.hpp"
+#include "provider/stereoSystem.hpp"
 
 class StereoReconstructionPipeline {
 private:
-    std::unique_ptr<StereoCamera> camera;
+    std::unique_ptr<StereoSystem<Camera>> camera;
 
 public:
     StereoReconstructionPipeline(std::string leftCamName, std::string rightCamName);
