@@ -136,6 +136,56 @@ void showDisparity(const cv::Mat& disparity) {
     cv::waitKey(0);
 }
 
+cv::Mat computeSGBM(const cv::Mat& rectL, const cv::Mat& rectR) {
+    // Paramètres de base
+    int minDisparity = 0;
+    int numDisparities = 128 + 32; // Doit être un multiple de 16
+    int blockSize = 3;             // Taille du bloc de match
+
+    // Création de l'objet SGBM
+    int cn = rectL.channels();
+    cv::Ptr<cv::StereoSGBM> sgbm = cv::StereoSGBM::create(minDisparity, numDisparities, blockSize);
+    
+    // Filtres post-calcul pour éviter le bruit
+    // see https://docs.opencv.org/4.x/d2/d85/classcv_1_1StereoSGBM.html#ad8d3f70b8c7f0c0447014149f2bcff78a0f746667febe92e1189e924c40752660
+    sgbm->setP1(8 * cn * blockSize * blockSize);
+    sgbm->setP2(32 * cn * blockSize * blockSize);
+    sgbm->setDisp12MaxDiff(1);           // Vérification cohérence gauche-droite (crucial pour la qualité)
+    sgbm->setPreFilterCap(63);           // Coupe les valeurs extrêmes de gradient
+    sgbm->setUniquenessRatio(10);        // Élimine les matches ambigus (plus c'est haut, plus c'est sévère)
+    sgbm->setSpeckleWindowSize(100);     // Taille des petits "grains" de bruit à supprimer
+    sgbm->setSpeckleRange(1);            // Tolérance de différence pour le débruitage
+    sgbm->setMode(cv::StereoSGBM::MODE_HH);
+
+    // Calcul de la disparité
+    cv::Mat dispRaw;
+    sgbm->compute(rectL, rectR, dispRaw);
+
+    // Conversion: SGBM renvoie des valeurs signées 16 bits multipliées par 16
+    cv::Mat disp32F;
+    dispRaw.convertTo(disp32F, CV_32F, 1.0 / 16.0);
+
+    return disp32F;
+}
+
+void showBeautifulMap(const cv::Mat& disp32F) {
+    cv::Mat view, color;
+    
+    // On normalise pour que la valeur min soit à 0 et max à 255
+    double min, max;
+    cv::minMaxLoc(disp32F, &min, &max, nullptr, nullptr, disp32F > 0);
+    disp32F.convertTo(view, CV_8U, 255.0 / (max - min), -min * 255.0 / (max - min));
+
+    // Utilisation d'une ColorMap pour le relief
+    cv::applyColorMap(view, color, cv::COLORMAP_MAGMA);
+    
+    // On remet en noir les zones où le calcul a échoué (valeurs <= 0)
+    color.setTo(cv::Scalar(0, 0, 0), disp32F <= 0);
+
+    cv::imshow("Disparity SGBM", color);
+    cv::waitKey(0);
+}
+
 void theWholeProcess() {
     // Calibrate
     Calibrator calib("../calibration/robotnik/", {7, 5}, 30.5f);
@@ -146,8 +196,8 @@ void theWholeProcess() {
     }
 
     // Read
-    cv::Mat imgL = cv::imread("../calibration/robotnik/pic/left/l103.png");
-    cv::Mat imgR = cv::imread("../calibration/robotnik/pic/right/r103.png");
+    cv::Mat imgL = cv::imread("../calibration/robotnik/pic/left.png");
+    cv::Mat imgR = cv::imread("../calibration/robotnik/pic/right.png");
 
     // Rectify
     StereoRectifier rectifier(K1, D1, K2, D2, R, T, imgSize);
@@ -160,6 +210,10 @@ void theWholeProcess() {
     cv::cvtColor(rectifiedL, grayL, cv::COLOR_BGR2GRAY);
     cv::cvtColor(rectifiedR, grayR, cv::COLOR_BGR2GRAY);
 
+    // Boost corner detection
+    cv::Ptr<cv::CLAHE> clahe = cv::createCLAHE(2.0, cv::Size(8,8));
+    clahe->apply(grayL, grayL);
+    clahe->apply(grayR, grayR);
     // Detect keypoints 
     Detector detector;
     std::vector<cv::KeyPoint> keypoints1 = detector.detect(grayL);
@@ -182,6 +236,10 @@ void theWholeProcess() {
     // Compute sparse disparity map
     cv::Mat disparity = computeSparseDisparity(keypoints1, keypoints2, matches, imgSize);
     showDisparity(disparity);
+    
+    // From OpenCV
+    auto a = computeSGBM(rectifiedL, rectifiedR);
+    showBeautifulMap(a);
 }
 
 int main(int argc, char** argv) {
