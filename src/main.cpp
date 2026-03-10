@@ -155,6 +155,7 @@ void jsonTest() {
     else {
         std::cout << Files::to_string(status) << std::endl;
     }
+}
 
 cv::Mat takePictureCalib(Camera *cam)
 {
