@@ -8,7 +8,7 @@
 class Calibrator {
 private:
     // Chessboard parameters
-    cv::Size boardSize = {5, 7}; // corners
+    cv::Size boardSize = {7, 5}; // corners
     float squareSize = 30.5f;  // mm
 
     // Accumulated data

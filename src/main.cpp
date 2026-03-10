@@ -138,7 +138,7 @@ void showDisparity(const cv::Mat& disparity) {
 
 void theWholeProcess() {
     // Calibrate
-    Calibrator calib("../calibration/robotnik/", {5, 7}, 30.5f);
+    Calibrator calib("../calibration/robotnik/", {7, 5}, 30.5f);
     cv::Mat K1, D1, K2, D2, R, T;
     cv::Size imgSize;
     if (calib.extractCorners(false)) { // change to true to see each detection
