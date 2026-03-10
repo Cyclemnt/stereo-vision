@@ -1,55 +1,109 @@
 #include "features/matcher.hpp"
+#include <numeric>
 
 StereoMatcher::StereoMatcher(float yTol, float ratio)
     : yThreshold(yTol), ratioTest(ratio) {}
 
-// From LLM, to be revised
 std::vector<cv::DMatch> StereoMatcher::match(
     const std::vector<cv::KeyPoint>& kptsL, const cv::Mat& descL,
     const std::vector<cv::KeyPoint>& kptsR, const cv::Mat& descR) 
 {
-    // 1. Brute Force Matcher avec Distance de Hamming
-    cv::BFMatcher bf(cv::NORM_HAMMING, false); // false = pas de cross-check interne pour le faire à la main
-    
-    // On récupère les 2 meilleurs pour le ratio test
+    // KNN matching
+    cv::FlannBasedMatcher matcher;
     std::vector<std::vector<cv::DMatch>> knnMatches;
-    bf.knnMatch(descL, descR, knnMatches, 2);
+    matcher.knnMatch(descL, descR, knnMatches, 2);
 
-    std::vector<cv::DMatch> ratioMatches;
-    for (auto& m : knnMatches) {
+    // Lowe ratio test
+    const float ratio_thresh = 0.75f;
+    std::vector<cv::DMatch> goodMatches;
+    for (const auto& m : knnMatches) {
         if (m.size() < 2) continue;
-        // Ratio test de Lowe
-        if (m[0].distance < m[1].distance * 0.75f) {
-            // Contrainte épipolaire manuelle
-            float yDiff = std::abs(kptsL[m[0].queryIdx].pt.y - kptsR[m[0].trainIdx].pt.y);
-            if (yDiff < 3.0f) { // Tolérance un peu plus large vu ton RMS
-                ratioMatches.push_back(m[0]);
-            }
-        }
+        if (m[0].distance < ratio_thresh * m[1].distance) goodMatches.push_back(m[0]);
     }
 
-    // 2. Filtre RANSAC (Le "Nettoyeur")
-    if (ratioMatches.size() < 8) return ratioMatches;
+    // If not enough matches for RANSAC, return
+    if (goodMatches.size() < 8) return goodMatches;
 
-    std::vector<cv::Point2f> ptsL, ptsR;
-    for (auto& m : ratioMatches) {
-        ptsL.push_back(kptsL[m.queryIdx].pt);
-        ptsR.push_back(kptsR[m.trainIdx].pt);
+    // Extract points
+    std::vector<cv::Point2f> pts1, pts2;
+    for (const auto& m : goodMatches) {
+        pts1.push_back(kptsL[m.queryIdx].pt);
+        pts2.push_back(kptsR[m.trainIdx].pt);
     }
 
-    std::vector<uchar> inliersMask;
-    // On cherche la matrice Fondamentale. En théorie elle est simple (rectifiée), 
-    // mais RANSAC va trouver les points qui mentent.
-    cv::findFundamentalMat(ptsL, ptsR, cv::FM_RANSAC, 1.0, 0.99, inliersMask);
+    // RANSAC
+    std::vector<uchar> inlierMask;
+    cv::findFundamentalMat(
+        pts1,
+        pts2,
+        cv::FM_RANSAC,
+        1.0,      // reprojection threshold (pixels)
+        0.99,
+        inlierMask
+    );
 
-    std::vector<cv::DMatch> finalMatches;
-    for (size_t i = 0; i < inliersMask.size(); i++) {
-        if (inliersMask[i]) {
-            finalMatches.push_back(ratioMatches[i]);
-        }
+    // Keep only inliners
+    std::vector<cv::DMatch> inlierMatches;
+    for (size_t i = 0; i < goodMatches.size(); i++) {
+        if (inlierMask[i]) inlierMatches.push_back(goodMatches[i]);
     }
 
-    return finalMatches;
+    return inlierMatches;
+
+    // const float epipolarTol = 3.0f;     // tolérance verticale
+    // const float maxDisp = 128.0f;       // disparité max
+    // const float minDisp = 0.0f;
+    // const float ratio = 0.5f;
+
+    // std::vector<cv::DMatch> matches;
+
+    // // index des points droits par coordonnée Y
+    // std::vector<int> orderR(kptsR.size());
+    // std::iota(orderR.begin(), orderR.end(), 0);
+
+    // std::sort(orderR.begin(), orderR.end(),
+    //     [&](int a, int b){ return kptsR[a].pt.y < kptsR[b].pt.y; });
+
+    // for (int i = 0; i < kptsL.size(); ++i) {
+    //     const auto& kpL = kptsL[i];
+    //     const cv::Mat dL = descL.row(i);
+
+    //     float bestDist = FLT_MAX;
+    //     float secondDist = FLT_MAX;
+    //     int bestIdx = -1;
+
+    //     for (int j : orderR) {
+    //         const auto& kpR = kptsR[j];
+
+    //         float dy = std::abs(kpL.pt.y - kpR.pt.y);
+    //         if (dy > epipolarTol) {
+    //             if (kpR.pt.y > kpL.pt.y + epipolarTol)
+    //                 break;
+    //             continue;
+    //         }
+
+    //         float disp = kpL.pt.x - kpR.pt.x;
+    //         if (disp < minDisp || disp > maxDisp)
+    //             continue;
+
+    //         float dist = cv::norm(dL, descR.row(j), (descL.type() == CV_8U) ? cv::NORM_HAMMING : cv::NORM_L2);
+
+    //         if (dist < bestDist) {
+    //             secondDist = bestDist;
+    //             bestDist = dist;
+    //             bestIdx = j;
+    //         }
+    //         else if (dist < secondDist) {
+    //             secondDist = dist;
+    //         }
+    //     }
+
+    //     if (bestIdx >= 0 && bestDist < ratio * secondDist) {
+    //         matches.emplace_back(i, bestIdx, bestDist);
+    //     }
+    // }
+
+    // return matches;
 }
 
 void StereoMatcher::visualize(const cv::Mat& img1, const std::vector<cv::KeyPoint>& kp1, const cv::Mat& img2, const std::vector<cv::KeyPoint>& kp2, const std::vector<cv::DMatch>& matches) const {

@@ -6,7 +6,7 @@
 
 class Descriptor {
 private:
-    cv::Ptr<cv::ORB> orb;
+    cv::Ptr<cv::SIFT> sift;
     
 public:
     Descriptor(/* args */);

@@ -8,8 +8,8 @@
 class Calibrator {
 private:
     // Chessboard parameters
-    cv::Size boardSize = {7, 9}; // corners
-    float squareSize = 20.0f;  // mm
+    cv::Size boardSize = {7, 5}; // corners
+    float squareSize = 30.5f;  // mm
 
     // Accumulated data
     std::vector<std::vector<cv::Point3f>> objectPoints;
@@ -17,15 +17,16 @@ private:
     cv::Size imageSize;
 
     // Folder paths
-    std::string pathL = "../calibration/left/";
-    std::string pathR = "../calibration/right/";
+    std::string pathL;
+    std::string pathR;
 
 public:
-    Calibrator(cv::Size board = {7, 5}, float size = 30.5f);
+    Calibrator(std::string path, cv::Size board = {7, 5}, float size = 30.5f);
     
     /// @brief Load images and detect corners
     /// @return true if enough pairs detected
-    bool extractCorners();
+    /// @param show To show each corner detection
+    bool extractCorners(bool show);
 
     /// @brief Computes matrixes
     void compute(cv::Mat& K1, cv::Mat& D1, cv::Mat& K2, cv::Mat& D2, cv::Mat& R, cv::Mat& T, cv::Size& imgSize);
