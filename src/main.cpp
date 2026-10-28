@@ -184,14 +184,60 @@ cv::Mat computeSparseDisparity(const std::vector<cv::KeyPoint>& kptsL, const std
     return disparity;
 }
 
+
 void showDisparity(const cv::Mat& disparity) {
-    cv::Mat dispVis;
-    cv::normalize(disparity, dispVis, 0, 255, cv::NORM_MINMAX);
-    dispVis.convertTo(dispVis, CV_8U);
+    CV_Assert(!disparity.empty());
 
-    cv::applyColorMap(dispVis, dispVis, cv::COLORMAP_JET);
+    cv::Mat disparityFloat;
+    disparity.convertTo(disparityFloat, CV_32F);
 
-    cv::imshow("Disparity", dispVis);
+    cv::Mat validMask = disparityFloat > 0;
+
+    cv::Mat dispGray(disparity.size(), CV_8U, cv::Scalar(0));
+
+    if (cv::countNonZero(validMask) > 0) {
+        double minVal, maxVal;
+        cv::minMaxLoc(disparityFloat, &minVal, &maxVal, nullptr, nullptr, validMask);
+
+        if (maxVal > minVal) {
+            cv::Mat normalized =
+                (disparityFloat - minVal) * (255.0f / static_cast<float>(maxVal - minVal));
+            normalized.convertTo(normalized, CV_8U);
+            normalized.copyTo(dispGray, validMask);
+        }
+    }
+
+    cv::Mat colorMap;
+    cv::applyColorMap(dispGray, colorMap, cv::COLORMAP_MAGMA);
+    colorMap.setTo(cv::Scalar(0, 0, 0), ~validMask);
+
+    cv::Mat output(colorMap.size(), colorMap.type(), cv::Scalar(0, 0, 0));
+
+    const int blockSize = 3;
+    const int half = blockSize / 2;
+
+    for (int y = 0; y < colorMap.rows; ++y) {
+        for (int x = 0; x < colorMap.cols; ++x) {
+            if (!validMask.at<uchar>(y, x)) {
+                continue;
+            }
+
+            const cv::Vec3b value = colorMap.at<cv::Vec3b>(y, x);
+
+            for (int dy = -half; dy <= half; ++dy) {
+                for (int dx = -half; dx <= half; ++dx) {
+                    int nx = x + dx;
+                    int ny = y + dy;
+
+                    if (nx >= 0 && nx < output.cols && ny >= 0 && ny < output.rows) {
+                        output.at<cv::Vec3b>(ny, nx) = value;
+                    }
+                }
+            }
+        }
+    }
+
+    cv::imshow("Disparity", output);
     cv::waitKey(0);
 }
 
@@ -245,6 +291,70 @@ void showBeautifulMap(const cv::Mat& disp32F) {
     cv::waitKey(0);
 }
 
+#include <fstream>
+#include <iostream>
+
+void savePointCloudPLY(const std::string& filename, const cv::Mat& disparityMap, const cv::Mat& colorImage, const cv::Mat& Q) {
+    // 1. Reprojection de la disparité en 3D
+    cv::Mat points3D;
+    // reprojectImageTo3D gère les maths : (X,Y,Z) = Q * (x, y, d, 1)
+    // Ne reprojette que si d != 0, sinon génère des coordonnées à l'infini (10000)
+    cv::reprojectImageTo3D(disparityMap, points3D, Q, true, CV_32F);
+
+    // 2. Préparation de l'écriture du fichier
+    std::ofstream plyFile(filename);
+    if (!plyFile.is_open()) {
+        std::cerr << "Erreur: Impossible d'ouvrir " << filename << std::endl;
+        return;
+    }
+
+    // 3. Compter les points valides (pour l'entête PLY)
+    int validPoints = 0;
+    for (int y = 0; y < points3D.rows; ++y) {
+        for (int x = 0; x < points3D.cols; ++x) {
+            float disp = disparityMap.at<float>(y, x);
+            cv::Vec3f pt = points3D.at<cv::Vec3f>(y, x);
+            // On ignore les points sans disparité (<= 0) ou aberrants (Z trop grand)
+            if (disp > 0 && pt[2] < 10000 && pt[2] > 0) {
+                validPoints++;
+            }
+        }
+    }
+
+    // 4. Écrire l'entête PLY standard
+    plyFile << "ply\n";
+    plyFile << "format ascii 1.0\n";
+    plyFile << "element vertex " << validPoints << "\n";
+    plyFile << "property float x\n";
+    plyFile << "property float y\n";
+    plyFile << "property float z\n";
+    plyFile << "property uchar red\n";
+    plyFile << "property uchar green\n";
+    plyFile << "property uchar blue\n";
+    plyFile << "end_header\n";
+
+    // 5. Écrire les données X Y Z R G B
+    for (int y = 0; y < points3D.rows; ++y) {
+        for (int x = 0; x < points3D.cols; ++x) {
+            float disp = disparityMap.at<float>(y, x);
+            cv::Vec3f pt = points3D.at<cv::Vec3f>(y, x);
+
+            if (disp > 0 && pt[2] < 10000 && pt[2] > 0) {
+                // OpenCV stocke la couleur en BGR, PLY veut du RGB
+                cv::Vec3b color = colorImage.at<cv::Vec3b>(y, x);
+                
+                // On inverse Y et Z pour que le nuage de points soit droit dans Open3D 
+                // (OpenCV a Y vers le bas et Z vers l'avant, Open3D a Y vers le haut)
+                plyFile << pt[0] << " " << -pt[1] << " " << -pt[2] << " "
+                        << (int)color[2] << " " << (int)color[1] << " " << (int)color[0] << "\n";
+            }
+        }
+    }
+
+    plyFile.close();
+    std::cout << "Nuage de points sauvegardé: " << filename << " (" << validPoints << " points)" << std::endl;
+}
+
 void theWholeProcess() {
     // Calibrate
     Calibrator calib("../calibration/robotnik/", {7, 5}, 30.5f);
@@ -263,6 +373,8 @@ void theWholeProcess() {
     cv::Mat rectifiedL, rectifiedR;
     rectifier.process(imgL, imgR, rectifiedL, rectifiedR);
     rectifier.vizualize(rectifiedL, rectifiedR);
+
+    cv::Mat Q = rectifier.getQ();
 
     // Convert to grayscale
     cv::Mat grayL, grayR;
@@ -295,10 +407,14 @@ void theWholeProcess() {
     // Compute sparse disparity map
     cv::Mat disparity = computeSparseDisparity(keypoints1, keypoints2, matches, imgSize);
     showDisparity(disparity);
+
+    savePointCloudPLY("sparse_cloud.ply", disparity, rectifiedL, Q);
     
     // From OpenCV
     auto a = computeSGBM(rectifiedL, rectifiedR);
     showBeautifulMap(a);
+
+    savePointCloudPLY("sgbm_cloud.ply", a, rectifiedL, Q);
 }
 
 int main(int argc, char** argv) {

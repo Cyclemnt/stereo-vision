@@ -11,6 +11,8 @@ private:
     cv::Mat mapL1, mapL2;
     cv::Mat mapR1, mapR2;
 
+    cv::Mat Q;
+
 public:
     StereoRectifier(const cv::Mat& K1, const cv::Mat& D1,
                     const cv::Mat& K2, const cv::Mat& D2,
@@ -19,6 +21,8 @@ public:
 
     /// @brief Apply rectification on both images
     void process(const cv::Mat& imgL, const cv::Mat& imgR, cv::Mat& outL, cv::Mat& outR);
+
+    cv::Mat getQ() {return Q;}
 
     /// @brief vizualize rectification with lines
     void vizualize(const cv::Mat& rectL, const cv::Mat& rectR);

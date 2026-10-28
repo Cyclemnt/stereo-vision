@@ -4,7 +4,7 @@
 
 StereoRectifier::StereoRectifier(const cv::Mat& K1, const cv::Mat& D1, const cv::Mat& K2, const cv::Mat& D2, const cv::Mat& R,  const cv::Mat& T, cv::Size imgSize) {
     // Compute rectification matrixes
-    cv::Mat R1, R2, P1, P2, Q;
+    cv::Mat R1, R2, P1, P2;
     // stereoRectify aligne les caméras sur un plan commun
     cv::stereoRectify(K1, D1, K2, D2, imgSize, R, T, R1, R2, P1, P2, Q);
 
